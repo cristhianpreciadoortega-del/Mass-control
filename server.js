@@ -232,3 +232,5 @@ app.get("/api/auth/me", autenticar, (req, res) => {
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Mass Control activo en puerto ${PORT}`);
 });
+
+app.use("/api/productos", require("./productos")(pool, autenticar));
