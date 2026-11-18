@@ -175,4 +175,101 @@ module.exports = function crearRutasLotes(pool, autenticar) {
   });
 
   return router;
+  
+  // CONFIRMAR FECHA DE UN LOTE
+  router.patch("/:id/confirmar", async (req, res) => {
+    if (!idValido(req.params.id)) {
+      return res.status(400).json({
+        error: "ID de lote no valido"
+      });
+    }
+
+    let client;
+
+    try {
+      client = await pool.connect();
+      await client.query("BEGIN");
+
+      const resultado = await client.query(
+        `SELECT l.id, l.estado, l.fecha_confirmada,
+                l.fecha_limite, p.tienda_id
+         FROM mass_control.lotes l
+         JOIN mass_control.productos p
+           ON p.id = l.producto_id
+         WHERE l.id = $1
+         FOR UPDATE OF l`,
+        [req.params.id]
+      );
+
+      const lote = resultado.rows[0];
+
+      if (!lote ||
+          (req.cuenta.rol !== "ADMIN" &&
+           String(lote.tienda_id) !==
+           String(req.cuenta.tienda_id))) {
+        await client.query("ROLLBACK");
+        return res.status(404).json({
+          error: "Lote no encontrado"
+        });
+      }
+
+      if (lote.estado !== "PENDIENTE_REVISION" ||
+          lote.fecha_confirmada ||
+          !lote.fecha_limite) {
+        await client.query("ROLLBACK");
+        return res.status(409).json({
+          error: "El lote no esta pendiente de confirmacion"
+        });
+      }
+
+      const actualizado = await client.query(
+        `UPDATE mass_control.lotes
+         SET fecha_confirmada = TRUE,
+             estado = 'ACTIVO'
+         WHERE id = $1
+         RETURNING id, estado, fecha_confirmada`,
+        [lote.id]
+      );
+
+      await client.query(
+        `INSERT INTO mass_control.movimientos
+         (lote_id, cuenta_id, accion,
+          datos_anteriores, datos_nuevos)
+         VALUES ($1, $2, $3, $4::jsonb, $5::jsonb)`,
+        [
+          lote.id,
+          req.cuenta.id,
+          "CONFIRMACION_FECHA",
+          JSON.stringify({
+            estado: lote.estado,
+            fecha_confirmada: lote.fecha_confirmada
+          }),
+          JSON.stringify({
+            estado: "ACTIVO",
+            fecha_confirmada: true
+          })
+        ]
+      );
+
+      await client.query("COMMIT");
+
+      res.json({
+        lote: actualizado.rows[0]
+      });
+    } catch (error) {
+      if (client) {
+        try {
+          await client.query("ROLLBACK");
+        } catch (_) {}
+      }
+
+      console.error("Confirmar lote:", error.code);
+      res.status(500).json({
+        error: "No se pudo confirmar el lote"
+      });
+    } finally {
+      if (client) client.release();
+    }
+  });
+
 };
