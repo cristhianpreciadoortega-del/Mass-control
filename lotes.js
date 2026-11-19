@@ -4,7 +4,10 @@ const express = require("express");
 module.exports = function crearRutasLotes(pool, autenticar) {
   const router = express.Router();
 
+  // =========================================
   // AUTENTICACION OBLIGATORIA
+  // =========================================
+
   router.use(autenticar);
 
   function idValido(valor) {
@@ -40,6 +43,7 @@ module.exports = function crearRutasLotes(pool, autenticar) {
 
     const productoId = req.query.producto_id ?? null;
 
+    // IMPEDIR ACCESO A OTRAS TIENDAS
     if (
       !admin &&
       req.query.tienda_id != null &&
@@ -50,6 +54,7 @@ module.exports = function crearRutasLotes(pool, autenticar) {
       });
     }
 
+    // VALIDAR IDENTIFICADORES
     if (
       (tiendaId != null && !idValido(tiendaId)) ||
       (productoId != null && !idValido(productoId))
@@ -74,18 +79,28 @@ module.exports = function crearRutasLotes(pool, autenticar) {
            l.cantidad,
            l.estado,
            l.registrado_en
+
          FROM mass_control.lotes l
+
          JOIN mass_control.productos p
            ON p.id = l.producto_id
+
          WHERE
-           ($1::bigint IS NULL
-            OR p.tienda_id = $1::bigint)
+           (
+             $1::bigint IS NULL
+             OR p.tienda_id = $1::bigint
+           )
+
            AND
-           ($2::bigint IS NULL
-            OR l.producto_id = $2::bigint)
+           (
+             $2::bigint IS NULL
+             OR l.producto_id = $2::bigint
+           )
+
          ORDER BY
            l.fecha_limite ASC NULLS LAST,
            l.id DESC
+
          LIMIT 100`,
         [tiendaId, productoId]
       );
@@ -95,7 +110,10 @@ module.exports = function crearRutasLotes(pool, autenticar) {
       });
 
     } catch (error) {
-      console.error("Consulta lotes:", error.code);
+      console.error(
+        "Consulta lotes:",
+        error.code || error.name
+      );
 
       res.status(500).json({
         error: "No se pudieron consultar los lotes"
@@ -104,7 +122,7 @@ module.exports = function crearRutasLotes(pool, autenticar) {
   });
 
   // =========================================
-  // 2. REGISTRAR LOTE
+  // 2. REGISTRAR NUEVO LOTE
   // =========================================
 
   router.post("/", async (req, res) => {
@@ -115,12 +133,29 @@ module.exports = function crearRutasLotes(pool, autenticar) {
     const cantidad = datos.cantidad;
     const numeroLote = datos.numero_lote;
 
+    // NUEVO: RESPETAR EL TIPO DE FECHA ELEGIDO
+    const tipoFecha = datos.tipo_fecha ?? "CADUCIDAD";
+
+    // =========================================
+    // VALIDACION DE DATOS
+    // =========================================
+
     if (
       !idValido(productoId) ||
+
       !fechaValida(fechaLimite) ||
+
       !Number.isInteger(cantidad) ||
+
       cantidad <= 0 ||
+
       cantidad > 1000000 ||
+
+      ![
+        "CADUCIDAD",
+        "CONSUMO_PREFERENTE"
+      ].includes(tipoFecha) ||
+
       (
         numeroLote != null &&
         (
@@ -145,6 +180,10 @@ module.exports = function crearRutasLotes(pool, autenticar) {
       await client.query("BEGIN");
       transaccion = true;
 
+      // =========================================
+      // INSERTAR LOTE EN SU TIENDA
+      // =========================================
+
       const resultado = await client.query(
         `INSERT INTO mass_control.lotes
          (
@@ -156,21 +195,27 @@ module.exports = function crearRutasLotes(pool, autenticar) {
            cantidad,
            estado
          )
+
          SELECT
            p.id,
            $2,
            $3::date,
-           'CADUCIDAD',
-           FALSE,
            $4,
+           FALSE,
+           $5,
            'PENDIENTE_REVISION'
+
          FROM mass_control.productos p
+
          WHERE p.id = $1
+
            AND p.activo = TRUE
+
            AND (
-             $5::boolean
-             OR p.tienda_id = $6::bigint
+             $6::boolean
+             OR p.tienda_id = $7::bigint
            )
+
          RETURNING
            id,
            producto_id,
@@ -184,12 +229,14 @@ module.exports = function crearRutasLotes(pool, autenticar) {
           productoId,
           numeroLote ? numeroLote.trim() : null,
           fechaLimite,
+          tipoFecha,
           cantidad,
           admin,
           req.cuenta.tienda_id
         ]
       );
 
+      // PRODUCTO INEXISTENTE O SIN PERMISOS
       if (!resultado.rows.length) {
         await client.query("ROLLBACK");
         transaccion = false;
@@ -201,7 +248,10 @@ module.exports = function crearRutasLotes(pool, autenticar) {
 
       const lote = resultado.rows[0];
 
-      // REGISTRAR HISTORIAL
+      // =========================================
+      // GUARDAR HISTORIAL DE CREACION
+      // =========================================
+
       await client.query(
         `INSERT INTO mass_control.movimientos
          (
@@ -210,7 +260,14 @@ module.exports = function crearRutasLotes(pool, autenticar) {
            accion,
            datos_nuevos
          )
-         VALUES ($1, $2, $3, $4::jsonb)`,
+
+         VALUES
+         (
+           $1,
+           $2,
+           $3,
+           $4::jsonb
+         )`,
         [
           lote.id,
           req.cuenta.id,
@@ -219,6 +276,7 @@ module.exports = function crearRutasLotes(pool, autenticar) {
         ]
       );
 
+      // CONFIRMAR TRANSACCION
       await client.query("COMMIT");
       transaccion = false;
 
@@ -227,13 +285,39 @@ module.exports = function crearRutasLotes(pool, autenticar) {
       });
 
     } catch (error) {
+
+      // DESHACER TRANSACCION SI FALLA
       if (client && transaccion) {
         try {
           await client.query("ROLLBACK");
         } catch (_) {}
       }
 
-      console.error("Registro lote:", error.code);
+      console.error(
+        "Registro lote:",
+        error.code || error.name
+      );
+
+      // POSIBLE RESTRICCION DE TIPO DE FECHA
+      // EN EL ESQUEMA EXISTENTE
+      if (
+        error.code === "23514" ||
+        error.code === "22P02" ||
+        error.code === "42804"
+      ) {
+        return res.status(400).json({
+          error:
+            "La base de datos no admite alguno " +
+            "de los valores enviados. " +
+            "Comprueba la configuracion de tipo_fecha."
+        });
+      }
+
+      if (error.code === "23503") {
+        return res.status(400).json({
+          error: "Referencia de producto no valida"
+        });
+      }
 
       res.status(500).json({
         error: "No se pudo registrar el lote"
@@ -247,10 +331,11 @@ module.exports = function crearRutasLotes(pool, autenticar) {
   });
 
   // =========================================
-  // 3. CONFIRMAR FECHA DE CADUCIDAD
+  // 3. CONFIRMAR FECHA DE UN LOTE
   // =========================================
 
   router.patch("/:id/confirmar", async (req, res) => {
+
     if (!idValido(req.params.id)) {
       return res.status(400).json({
         error: "ID de lote no valido"
@@ -266,7 +351,10 @@ module.exports = function crearRutasLotes(pool, autenticar) {
       await client.query("BEGIN");
       transaccion = true;
 
+      // =========================================
       // BUSCAR Y BLOQUEAR LOTE
+      // =========================================
+
       const resultado = await client.query(
         `SELECT
            l.id,
@@ -274,17 +362,24 @@ module.exports = function crearRutasLotes(pool, autenticar) {
            l.fecha_confirmada,
            l.fecha_limite,
            p.tienda_id
+
          FROM mass_control.lotes l
+
          JOIN mass_control.productos p
            ON p.id = l.producto_id
+
          WHERE l.id = $1
+
          FOR UPDATE OF l`,
         [req.params.id]
       );
 
       const lote = resultado.rows[0];
 
-      // VERIFICAR PERMISOS
+      // =========================================
+      // VERIFICAR PERMISOS DE TIENDA
+      // =========================================
+
       if (
         !lote ||
         (
@@ -301,7 +396,10 @@ module.exports = function crearRutasLotes(pool, autenticar) {
         });
       }
 
+      // =========================================
       // EVITAR CONFIRMACIONES DUPLICADAS
+      // =========================================
+
       if (
         lote.estado !== "PENDIENTE_REVISION" ||
         lote.fecha_confirmada ||
@@ -311,17 +409,25 @@ module.exports = function crearRutasLotes(pool, autenticar) {
         transaccion = false;
 
         return res.status(409).json({
-          error: "El lote no esta pendiente de confirmacion"
+          error:
+            "El lote no esta pendiente " +
+            "de confirmacion"
         });
       }
 
-      // CONFIRMAR FECHA
+      // =========================================
+      // ACTIVAR LOTE CONFIRMADO
+      // =========================================
+
       const actualizado = await client.query(
         `UPDATE mass_control.lotes
+
          SET
            fecha_confirmada = TRUE,
            estado = 'ACTIVO'
+
          WHERE id = $1
+
          RETURNING
            id,
            producto_id,
@@ -332,7 +438,10 @@ module.exports = function crearRutasLotes(pool, autenticar) {
         [lote.id]
       );
 
+      // =========================================
       // HISTORIAL DE CONFIRMACION
+      // =========================================
+
       await client.query(
         `INSERT INTO mass_control.movimientos
          (
@@ -342,16 +451,25 @@ module.exports = function crearRutasLotes(pool, autenticar) {
            datos_anteriores,
            datos_nuevos
          )
+
          VALUES
-         ($1, $2, $3, $4::jsonb, $5::jsonb)`,
+         (
+           $1,
+           $2,
+           $3,
+           $4::jsonb,
+           $5::jsonb
+         )`,
         [
           lote.id,
           req.cuenta.id,
           "CONFIRMACION_FECHA",
+
           JSON.stringify({
             estado: lote.estado,
             fecha_confirmada: lote.fecha_confirmada
           }),
+
           JSON.stringify({
             estado: "ACTIVO",
             fecha_confirmada: true
@@ -359,6 +477,7 @@ module.exports = function crearRutasLotes(pool, autenticar) {
         ]
       );
 
+      // CONFIRMAR TRANSACCION
       await client.query("COMMIT");
       transaccion = false;
 
@@ -367,13 +486,17 @@ module.exports = function crearRutasLotes(pool, autenticar) {
       });
 
     } catch (error) {
+
       if (client && transaccion) {
         try {
           await client.query("ROLLBACK");
         } catch (_) {}
       }
 
-      console.error("Confirmar lote:", error.code);
+      console.error(
+        "Confirmar lote:",
+        error.code || error.name
+      );
 
       res.status(500).json({
         error: "No se pudo confirmar el lote"
