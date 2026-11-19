@@ -12,7 +12,10 @@ app.set("trust proxy", 1);
 app.disable("x-powered-by");
 app.use(express.json({ limit: "16kb" }));
 
+// ========================================
 // CONEXION POSTGRESQL
+// ========================================
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   max: 3,
@@ -24,7 +27,10 @@ pool.on("error", (error) => {
   console.error("Error PostgreSQL:", error.code);
 });
 
+// ========================================
 // ESTADO DEL SERVIDOR
+// ========================================
+
 app.get("/", (req, res) => {
   res.json({
     aplicacion: "Mass Control",
@@ -32,7 +38,10 @@ app.get("/", (req, res) => {
   });
 });
 
+// ========================================
 // COMPROBACION DE LAS SIETE TABLAS
+// ========================================
+
 app.get("/health/db", async (req, res) => {
   if (!process.env.DATABASE_URL) {
     return res.status(503).json({
@@ -51,18 +60,26 @@ app.get("/health/db", async (req, res) => {
       UNION ALL SELECT COUNT(*) FROM mass_control.movimientos
     `);
 
-    res.json({ postgresql: "conectado" });
+    res.json({
+      postgresql: "conectado"
+    });
+
   } catch (error) {
     console.error("Error de base de datos:", error.code);
+
     res.status(503).json({
       postgresql: "no_disponible"
     });
   }
 });
 
+// ========================================
 // SEGURIDAD
+// ========================================
+
 function obtenerSecreto() {
   const secreto = process.env.JWT_SECRET;
+
   return secreto && Buffer.byteLength(secreto) >= 32
     ? secreto
     : null;
@@ -73,10 +90,15 @@ const loginLimiter = rateLimit({
   limit: 10,
   standardHeaders: "draft-7",
   legacyHeaders: false,
-  message: { error: "Demasiados intentos de acceso" }
+  message: {
+    error: "Demasiados intentos de acceso"
+  }
 });
 
+// ========================================
 // INICIO DE SESION
+// ========================================
+
 app.post("/api/auth/login", loginLimiter, async (req, res) => {
   const { usuario, contrasena } = req.body || {};
 
@@ -103,9 +125,14 @@ app.post("/api/auth/login", loginLimiter, async (req, res) => {
 
   try {
     const resultado = await pool.query(
-      `SELECT c.id, c.usuario, c.clave_hash,
-              c.rol, c.tienda_id, c.activa,
-              t.activa AS tienda_activa
+      `SELECT
+         c.id,
+         c.usuario,
+         c.clave_hash,
+         c.rol,
+         c.tienda_id,
+         c.activa,
+         t.activa AS tienda_activa
        FROM mass_control.cuentas c
        LEFT JOIN mass_control.tiendas t
          ON t.id = c.tienda_id
@@ -118,11 +145,19 @@ app.post("/api/auth/login", loginLimiter, async (req, res) => {
 
     const permitida = cuenta &&
       cuenta.activa &&
-      (cuenta.rol === "ADMIN" ||
-        (cuenta.rol === "TIENDA" && cuenta.tienda_activa));
+      (
+        cuenta.rol === "ADMIN" ||
+        (
+          cuenta.rol === "TIENDA" &&
+          cuenta.tienda_activa
+        )
+      );
 
     const claveCorrecta = permitida
-      ? await bcrypt.compare(contrasena, cuenta.clave_hash)
+      ? await bcrypt.compare(
+          contrasena,
+          cuenta.clave_hash
+        )
       : false;
 
     if (!claveCorrecta) {
@@ -144,15 +179,23 @@ app.post("/api/auth/login", loginLimiter, async (req, res) => {
       rol: cuenta.rol,
       tienda_id: cuenta.tienda_id
     });
+
   } catch (error) {
-    console.error("Error login:", error.code || error.name);
+    console.error(
+      "Error login:",
+      error.code || error.name
+    );
+
     res.status(500).json({
       error: "No se pudo iniciar sesion"
     });
   }
 });
 
-// COMPROBAR LA SESION
+// ========================================
+// VERIFICAR SESION Y PERMISOS
+// ========================================
+
 async function autenticar(req, res, next) {
   const secreto = obtenerSecreto();
 
@@ -163,6 +206,7 @@ async function autenticar(req, res, next) {
   }
 
   const encabezado = req.headers.authorization || "";
+
   const token = encabezado.startsWith("Bearer ")
     ? encabezado.slice(7)
     : null;
@@ -181,7 +225,11 @@ async function autenticar(req, res, next) {
     });
 
     const resultado = await pool.query(
-      `SELECT c.id, c.usuario, c.rol, c.tienda_id
+      `SELECT
+         c.id,
+         c.usuario,
+         c.rol,
+         c.tienda_id
        FROM mass_control.cuentas c
        LEFT JOIN mass_control.tiendas t
          ON t.id = c.tienda_id
@@ -189,7 +237,10 @@ async function autenticar(req, res, next) {
          AND c.activa = TRUE
          AND (
            c.rol = 'ADMIN'
-           OR (c.rol = 'TIENDA' AND t.activa = TRUE)
+           OR (
+             c.rol = 'TIENDA'
+             AND t.activa = TRUE
+           )
          )`,
       [datos.sub]
     );
@@ -202,6 +253,7 @@ async function autenticar(req, res, next) {
 
     req.cuenta = resultado.rows[0];
     next();
+
   } catch (error) {
     if (
       error.name === "JsonWebTokenError" ||
@@ -213,12 +265,20 @@ async function autenticar(req, res, next) {
       });
     }
 
-    console.error("Error sesion:", error.code || error.name);
+    console.error(
+      "Error sesion:",
+      error.code || error.name
+    );
+
     res.status(500).json({
       error: "No se pudo verificar la sesion"
     });
   }
 }
+
+// ========================================
+// CONSULTAR CUENTA ACTUAL
+// ========================================
 
 app.get("/api/auth/me", autenticar, (req, res) => {
   res.json({
@@ -228,14 +288,46 @@ app.get("/api/auth/me", autenticar, (req, res) => {
   });
 });
 
-app.use("/api/productos", require("./productos")(pool, autenticar));
-app.use("/api/lotes", require("./lotes")(pool, autenticar));
-app.use("/api/alertas", require("./alertas")(pool, autenticar));
-app.use("/api/retiradas", require("./retiradas")(pool, autenticar));
+// ========================================
+// MODULOS DE MASS CONTROL
+// ========================================
+
+// 1. PRODUCTOS Y FAMILIAS
+app.use(
+  "/api/productos",
+  require("./productos")(pool, autenticar)
+);
+
+// 2. LOTES Y CADUCIDADES
+app.use(
+  "/api/lotes",
+  require("./lotes")(pool, autenticar)
+);
+
+// 3. ALERTAS DE CADUCIDAD
+app.use(
+  "/api/alertas",
+  require("./alertas")(pool, autenticar)
+);
+
+// 4. RETIRADAS DE PRODUCTOS
+app.use(
+  "/api/retiradas",
+  require("./retiradas")(pool, autenticar)
+);
+
+// 5. HISTORIAL DE MOVIMIENTOS
+app.use(
+  "/api/historial",
+  require("./historial")(pool, autenticar)
+);
+
+// ========================================
+// INICIO DEL SERVIDOR
+// ========================================
+
 app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Mass Control activo en puerto ${PORT}`);
+  console.log(
+    `Mass Control activo en puerto ${PORT}`
+  );
 });
-
-
-
-
