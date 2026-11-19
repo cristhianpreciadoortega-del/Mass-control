@@ -24,40 +24,65 @@ jobs:
       MASS_API: https://mass-control-1.onrender.com
 
     steps:
-      - name: Sincronizar alertas
+      - name: Comprobar acceso y sincronizar alertas
         shell: bash
         run: |
           set -euo pipefail
 
           if [ -z "${MASS_PASSWORD:-}" ]; then
-            echo "Falta configurar MASS_TIENDA_PASSWORD"
+            echo "::error::Falta MASS_TIENDA_PASSWORD"
             exit 1
           fi
+
+          login_file=$(mktemp)
+          sync_file=$(mktemp)
+
+          trap 'rm -f "$login_file" "$sync_file"' EXIT
 
           login=$(jq -nc \
             --arg usuario "tienda_mass_001" \
             --arg contrasena "$MASS_PASSWORD" \
             '{usuario:$usuario,contrasena:$contrasena}')
 
-          sesion=$(curl --fail-with-body -sS \
-            --retry 3 \
-            --retry-all-errors \
-            --retry-delay 15 \
+          unset MASS_PASSWORD
+
+          codigo_login=$(curl -sS \
             --max-time 120 \
-            -X POST "$MASS_API/api/auth/login" \
+            -o "$login_file" \
+            -w '%{http_code}' \
+            -X POST \
+            "$MASS_API/api/auth/login" \
             -H "Content-Type: application/json" \
             --data "$login")
 
-          token=$(jq -er '.token' <<< "$sesion")
+          unset login
 
-          resultado=$(curl --fail-with-body -sS \
-            --retry 3 \
-            --retry-all-errors \
-            --retry-delay 15 \
+          echo "Inicio de sesion: HTTP $codigo_login"
+
+          if [ "$codigo_login" != "200" ]; then
+            echo "::error::Fallo de autenticacion HTTP $codigo_login"
+            exit 1
+          fi
+
+          token=$(jq -er '.token' "$login_file")
+
+          codigo_sync=$(curl -sS \
             --max-time 120 \
-            -X POST "$MASS_API/api/alertas/sincronizar" \
+            -o "$sync_file" \
+            -w '%{http_code}' \
+            -X POST \
+            "$MASS_API/api/alertas/sincronizar" \
             -H "Authorization: Bearer $token")
 
-          jq -e '{mensaje, nuevas}' <<< "$resultado"
+          unset token
 
-          unset token sesion login
+          echo "Sincronizacion: HTTP $codigo_sync"
+
+          if [ "$codigo_sync" != "200" ]; then
+            echo "::error::Fallo de sincronizacion HTTP $codigo_sync"
+            exit 1
+          fi
+
+          echo "ALERTAS SINCRONIZADAS CORRECTAMENTE"
+
+          jq '{mensaje, nuevas}' "$sync_file"
