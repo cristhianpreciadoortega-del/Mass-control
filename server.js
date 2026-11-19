@@ -4,13 +4,21 @@ const { Pool } = require("pg");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { rateLimit } = require("express-rate-limit");
+const path = require("path");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// ========================================
+// CONFIGURACION GENERAL
+// ========================================
+
 app.set("trust proxy", 1);
 app.disable("x-powered-by");
-app.use(express.json({ limit: "16kb" }));
+
+app.use(express.json({
+  limit: "16kb"
+}));
 
 // ========================================
 // CONEXION POSTGRESQL
@@ -24,7 +32,10 @@ const pool = new Pool({
 });
 
 pool.on("error", (error) => {
-  console.error("Error PostgreSQL:", error.code);
+  console.error(
+    "Error PostgreSQL:",
+    error.code
+  );
 });
 
 // ========================================
@@ -65,7 +76,10 @@ app.get("/health/db", async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Error de base de datos:", error.code);
+    console.error(
+      "Error de base de datos:",
+      error.code
+    );
 
     res.status(503).json({
       postgresql: "no_disponible"
@@ -74,7 +88,7 @@ app.get("/health/db", async (req, res) => {
 });
 
 // ========================================
-// SEGURIDAD
+// SEGURIDAD Y AUTENTICACION
 // ========================================
 
 function obtenerSecreto() {
@@ -99,101 +113,113 @@ const loginLimiter = rateLimit({
 // INICIO DE SESION
 // ========================================
 
-app.post("/api/auth/login", loginLimiter, async (req, res) => {
-  const { usuario, contrasena } = req.body || {};
+app.post(
+  "/api/auth/login",
+  loginLimiter,
+  async (req, res) => {
 
-  if (
-    typeof usuario !== "string" ||
-    typeof contrasena !== "string" ||
-    !usuario.trim() ||
-    !contrasena ||
-    usuario.length > 100 ||
-    contrasena.length > 256
-  ) {
-    return res.status(400).json({
-      error: "Datos de acceso invalidos"
-    });
-  }
+    const { usuario, contrasena } = req.body || {};
 
-  const secreto = obtenerSecreto();
-
-  if (!secreto) {
-    return res.status(503).json({
-      error: "Autenticacion no configurada"
-    });
-  }
-
-  try {
-    const resultado = await pool.query(
-      `SELECT
-         c.id,
-         c.usuario,
-         c.clave_hash,
-         c.rol,
-         c.tienda_id,
-         c.activa,
-         t.activa AS tienda_activa
-       FROM mass_control.cuentas c
-       LEFT JOIN mass_control.tiendas t
-         ON t.id = c.tienda_id
-       WHERE c.usuario = $1
-       LIMIT 1`,
-      [usuario.trim()]
-    );
-
-    const cuenta = resultado.rows[0];
-
-    const permitida = cuenta &&
-      cuenta.activa &&
-      (
-        cuenta.rol === "ADMIN" ||
-        (
-          cuenta.rol === "TIENDA" &&
-          cuenta.tienda_activa
-        )
-      );
-
-    const claveCorrecta = permitida
-      ? await bcrypt.compare(
-          contrasena,
-          cuenta.clave_hash
-        )
-      : false;
-
-    if (!claveCorrecta) {
-      return res.status(401).json({
-        error: "Credenciales incorrectas"
+    if (
+      typeof usuario !== "string" ||
+      typeof contrasena !== "string" ||
+      !usuario.trim() ||
+      !contrasena ||
+      usuario.length > 100 ||
+      contrasena.length > 256
+    ) {
+      return res.status(400).json({
+        error: "Datos de acceso invalidos"
       });
     }
 
-    const token = jwt.sign({}, secreto, {
-      algorithm: "HS256",
-      subject: String(cuenta.id),
-      issuer: "mass-control",
-      audience: "mass-control-app",
-      expiresIn: "8h"
-    });
+    const secreto = obtenerSecreto();
 
-    res.json({
-      token,
-      rol: cuenta.rol,
-      tienda_id: cuenta.tienda_id
-    });
+    if (!secreto) {
+      return res.status(503).json({
+        error: "Autenticacion no configurada"
+      });
+    }
 
-  } catch (error) {
-    console.error(
-      "Error login:",
-      error.code || error.name
-    );
+    try {
+      const resultado = await pool.query(
+        `SELECT
+           c.id,
+           c.usuario,
+           c.clave_hash,
+           c.rol,
+           c.tienda_id,
+           c.activa,
+           t.activa AS tienda_activa
 
-    res.status(500).json({
-      error: "No se pudo iniciar sesion"
-    });
+         FROM mass_control.cuentas c
+
+         LEFT JOIN mass_control.tiendas t
+           ON t.id = c.tienda_id
+
+         WHERE c.usuario = $1
+         LIMIT 1`,
+        [usuario.trim()]
+      );
+
+      const cuenta = resultado.rows[0];
+
+      const permitida = cuenta &&
+        cuenta.activa &&
+        (
+          cuenta.rol === "ADMIN" ||
+          (
+            cuenta.rol === "TIENDA" &&
+            cuenta.tienda_activa
+          )
+        );
+
+      const claveCorrecta = permitida
+        ? await bcrypt.compare(
+            contrasena,
+            cuenta.clave_hash
+          )
+        : false;
+
+      if (!claveCorrecta) {
+        return res.status(401).json({
+          error: "Credenciales incorrectas"
+        });
+      }
+
+      const token = jwt.sign(
+        {},
+        secreto,
+        {
+          algorithm: "HS256",
+          subject: String(cuenta.id),
+          issuer: "mass-control",
+          audience: "mass-control-app",
+          expiresIn: "8h"
+        }
+      );
+
+      res.json({
+        token,
+        rol: cuenta.rol,
+        tienda_id: cuenta.tienda_id
+      });
+
+    } catch (error) {
+      console.error(
+        "Error login:",
+        error.code || error.name
+      );
+
+      res.status(500).json({
+        error: "No se pudo iniciar sesion"
+      });
+    }
   }
-});
+);
 
 // ========================================
-// VERIFICAR SESION Y PERMISOS
+// COMPROBAR SESION Y PERMISOS
 // ========================================
 
 async function autenticar(req, res, next) {
@@ -218,11 +244,15 @@ async function autenticar(req, res, next) {
   }
 
   try {
-    const datos = jwt.verify(token, secreto, {
-      algorithms: ["HS256"],
-      issuer: "mass-control",
-      audience: "mass-control-app"
-    });
+    const datos = jwt.verify(
+      token,
+      secreto,
+      {
+        algorithms: ["HS256"],
+        issuer: "mass-control",
+        audience: "mass-control-app"
+      }
+    );
 
     const resultado = await pool.query(
       `SELECT
@@ -230,13 +260,19 @@ async function autenticar(req, res, next) {
          c.usuario,
          c.rol,
          c.tienda_id
+
        FROM mass_control.cuentas c
+
        LEFT JOIN mass_control.tiendas t
          ON t.id = c.tienda_id
+
        WHERE c.id = $1
+
          AND c.activa = TRUE
+
          AND (
            c.rol = 'ADMIN'
+
            OR (
              c.rol = 'TIENDA'
              AND t.activa = TRUE
@@ -252,6 +288,7 @@ async function autenticar(req, res, next) {
     }
 
     req.cuenta = resultado.rows[0];
+
     next();
 
   } catch (error) {
@@ -280,46 +317,67 @@ async function autenticar(req, res, next) {
 // CONSULTAR CUENTA ACTUAL
 // ========================================
 
-app.get("/api/auth/me", autenticar, (req, res) => {
-  res.json({
-    usuario: req.cuenta.usuario,
-    rol: req.cuenta.rol,
-    tienda_id: req.cuenta.tienda_id
-  });
-});
+app.get(
+  "/api/auth/me",
+  autenticar,
+  (req, res) => {
+
+    res.json({
+      usuario: req.cuenta.usuario,
+      rol: req.cuenta.rol,
+      tienda_id: req.cuenta.tienda_id
+    });
+  }
+);
 
 // ========================================
 // MODULOS DE MASS CONTROL
 // ========================================
 
 // 1. PRODUCTOS Y FAMILIAS
+
 app.use(
   "/api/productos",
   require("./productos")(pool, autenticar)
 );
 
 // 2. LOTES Y CADUCIDADES
+
 app.use(
   "/api/lotes",
   require("./lotes")(pool, autenticar)
 );
 
 // 3. ALERTAS DE CADUCIDAD
+
 app.use(
   "/api/alertas",
   require("./alertas")(pool, autenticar)
 );
 
 // 4. RETIRADAS DE PRODUCTOS
+
 app.use(
   "/api/retiradas",
   require("./retiradas")(pool, autenticar)
 );
 
 // 5. HISTORIAL DE MOVIMIENTOS
+
 app.use(
   "/api/historial",
   require("./historial")(pool, autenticar)
+);
+
+// ========================================
+// PANEL WEB MASS CONTROL
+// ========================================
+
+app.use(
+  "/panel",
+  express.static(
+    path.join(__dirname, "public")
+  )
 );
 
 // ========================================
