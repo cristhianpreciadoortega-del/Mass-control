@@ -456,5 +456,154 @@ module.exports = function crearRutasAlertas(pool, autenticar) {
     }
   });
 
+  // ========================================
+  // CERRAR ALERTA CON HISTORIAL
+  // ========================================
+
+  router.patch("/:id/cerrar", async (req, res) => {
+    const alertaId = req.params.id;
+    const observaciones = req.body?.observaciones;
+
+    if (
+      !idValido(alertaId) ||
+      req.body?.verificacion_fisica !== true ||
+      typeof observaciones !== "string" ||
+      observaciones.trim().length < 5 ||
+      observaciones.length > 500
+    ) {
+      return res.status(400).json({
+        error: "Verificacion y observaciones obligatorias"
+      });
+    }
+
+    let client;
+    let transaccion = false;
+
+    try {
+      client = await pool.connect();
+      await client.query("BEGIN");
+      transaccion = true;
+
+      const consulta = await client.query(
+        `SELECT
+           a.id,
+           a.lote_id,
+           a.tipo,
+           a.estado AS alerta_estado,
+           l.estado AS lote_estado,
+           l.cantidad,
+           p.tienda_id
+         FROM mass_control.alertas a
+         JOIN mass_control.lotes l
+           ON l.id = a.lote_id
+         JOIN mass_control.productos p
+           ON p.id = l.producto_id
+         WHERE a.id = $1
+         FOR UPDATE OF a, l`,
+        [alertaId]
+      );
+
+      const alerta = consulta.rows[0];
+
+      if (
+        !alerta ||
+        (
+          req.cuenta.rol !== "ADMIN" &&
+          String(alerta.tienda_id) !==
+          String(req.cuenta.tienda_id)
+        )
+      ) {
+        await client.query("ROLLBACK");
+        transaccion = false;
+
+        return res.status(404).json({
+          error: "Alerta no encontrada"
+        });
+      }
+
+      if (alerta.alerta_estado === "CERRADA") {
+        await client.query("ROLLBACK");
+        transaccion = false;
+
+        return res.status(409).json({
+          error: "La alerta ya esta cerrada"
+        });
+      }
+
+      if (
+        Number(alerta.cantidad) !== 0 ||
+        !["RETIRADO", "AGOTADO"].includes(
+          alerta.lote_estado
+        )
+      ) {
+        await client.query("ROLLBACK");
+        transaccion = false;
+
+        return res.status(409).json({
+          error: "El lote aun tiene unidades pendientes"
+        });
+      }
+
+      const actualizado = await client.query(
+        `UPDATE mass_control.alertas
+         SET estado = 'CERRADA'
+         WHERE id = $1
+         RETURNING id, lote_id, tipo, estado`,
+        [alertaId]
+      );
+
+      await client.query(
+        `INSERT INTO mass_control.movimientos
+         (
+           lote_id,
+           cuenta_id,
+           accion,
+           datos_anteriores,
+           datos_nuevos,
+           observaciones
+         )
+         VALUES ($1, $2, $3, $4::jsonb, $5::jsonb, $6)`,
+        [
+          alerta.lote_id,
+          req.cuenta.id,
+          "CIERRE_ALERTA",
+          JSON.stringify({
+            alerta_id: alerta.id,
+            estado: alerta.alerta_estado
+          }),
+          JSON.stringify({
+            alerta_id: alerta.id,
+            estado: "CERRADA"
+          }),
+          observaciones.trim()
+        ]
+      );
+
+      await client.query("COMMIT");
+      transaccion = false;
+
+      res.json({
+        mensaje: "Alerta cerrada correctamente",
+        alerta: actualizado.rows[0]
+      });
+
+    } catch (error) {
+      if (client && transaccion) {
+        try {
+          await client.query("ROLLBACK");
+        } catch (_) {}
+      }
+
+      console.error("Cierre alerta:", error.code);
+
+      res.status(500).json({
+        error: "No se pudo cerrar la alerta"
+      });
+
+    } finally {
+      if (client) client.release();
+    }
+  });
+
   return router;
 };
