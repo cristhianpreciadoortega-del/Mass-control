@@ -1,0 +1,63 @@
+
+name: Alertas diarias Mass Control
+
+on:
+  schedule:
+    - cron: '7 9 * * *'
+      timezone: 'Europe/Madrid'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mass-control-alertas
+  cancel-in-progress: false
+
+jobs:
+  sincronizar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      MASS_PASSWORD: ${{ secrets.MASS_TIENDA_PASSWORD }}
+      MASS_API: https://mass-control-1.onrender.com
+
+    steps:
+      - name: Sincronizar alertas
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -z "${MASS_PASSWORD:-}" ]; then
+            echo "Falta configurar MASS_TIENDA_PASSWORD"
+            exit 1
+          fi
+
+          login=$(jq -nc \
+            --arg usuario "tienda_mass_001" \
+            --arg contrasena "$MASS_PASSWORD" \
+            '{usuario:$usuario,contrasena:$contrasena}')
+
+          sesion=$(curl --fail-with-body -sS \
+            --retry 3 \
+            --retry-all-errors \
+            --retry-delay 15 \
+            --max-time 120 \
+            -X POST "$MASS_API/api/auth/login" \
+            -H "Content-Type: application/json" \
+            --data "$login")
+
+          token=$(jq -er '.token' <<< "$sesion")
+
+          resultado=$(curl --fail-with-body -sS \
+            --retry 3 \
+            --retry-all-errors \
+            --retry-delay 15 \
+            --max-time 120 \
+            -X POST "$MASS_API/api/alertas/sincronizar" \
+            -H "Authorization: Bearer $token")
+
+          jq -e '{mensaje, nuevas}' <<< "$resultado"
+
+          unset token sesion login
