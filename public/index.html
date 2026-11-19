@@ -5,17 +5,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mass Control</title>
-
 <style>
 :root {
   font-family: Arial, sans-serif;
   color: #182536;
   background: #f1f5f9;
 }
-
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
-
 body { margin: 0; }
 
 header {
@@ -23,23 +20,14 @@ header {
   color: white;
   padding: 22px;
 }
-
-header h1 {
-  margin: 0;
-  font-size: 26px;
-}
-
-header p {
-  margin: 7px 0 0;
-  opacity: .85;
-}
+header h1 { margin: 0; font-size: 26px; }
+header p { margin: 7px 0 0; opacity: .85; }
 
 main {
   max-width: 1050px;
   margin: 25px auto;
   padding: 0 16px;
 }
-
 .card {
   background: white;
   border-radius: 15px;
@@ -47,12 +35,7 @@ main {
   margin-bottom: 17px;
   box-shadow: 0 3px 15px #0000000a;
 }
-
-.login {
-  max-width: 460px;
-  margin: 55px auto;
-}
-
+.login { max-width: 460px; margin: 55px auto; }
 h2 { margin-top: 0; }
 
 label {
@@ -60,7 +43,6 @@ label {
   font-weight: bold;
   margin-bottom: 7px;
 }
-
 input, select {
   display: block;
   width: 100%;
@@ -72,12 +54,10 @@ input, select {
   background: white;
   color: #182536;
 }
-
 input:focus, select:focus {
   outline: 2px solid #176b50;
   outline-offset: 1px;
 }
-
 button {
   padding: 12px 17px;
   border: 0;
@@ -88,28 +68,23 @@ button {
   font-weight: bold;
   cursor: pointer;
 }
-
 button:disabled {
   opacity: .55;
   cursor: not-allowed;
 }
-
 .topbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 12px;
 }
-
 .logout { background: #334155; }
-
 .tabs {
   display: flex;
   flex-wrap: wrap;
   gap: 9px;
   margin: 20px 0;
 }
-
 .tabs button { background: #455d75; }
 .tabs button.active { background: #176b50; }
 
@@ -118,41 +93,33 @@ button:disabled {
   grid-template-columns: repeat(3, 1fr);
   gap: 12px;
 }
-
 .stat {
   padding: 18px;
   border-radius: 12px;
   background: #eaf1f6;
 }
-
 .stat strong {
   display: block;
   font-size: 30px;
   margin-top: 8px;
 }
-
 .item {
   padding: 18px 0;
   border-bottom: 1px solid #e2e8f0;
 }
-
 .item:last-child { border-bottom: 0; }
-
 .item-head {
   display: flex;
   justify-content: space-between;
   gap: 12px;
 }
-
 .item strong { line-height: 1.5; }
-
 .item p {
   color: #475569;
   line-height: 1.7;
   font-size: 14px;
   margin-bottom: 0;
 }
-
 .tag {
   padding: 6px 9px;
   border-radius: 7px;
@@ -162,27 +129,23 @@ button:disabled {
   white-space: nowrap;
   align-self: flex-start;
 }
-
 .tag.danger {
   background: #fee2e2;
   color: #991b1b;
 }
-
 .tag.warn {
   background: #fef3c7;
   color: #92400e;
 }
-
 .tag.ok {
   background: #dcfce7;
   color: #166534;
 }
-
 .message {
   min-height: 20px;
   margin: 12px 0;
+  line-height: 1.6;
 }
-
 .error { color: #b91c1c; }
 .success { color: #166534; }
 
@@ -191,29 +154,37 @@ button:disabled {
   grid-template-columns: 1fr 1fr;
   gap: 0 16px;
 }
-
 .full { grid-column: 1 / -1; }
-
 .checkline {
   display: flex;
   align-items: center;
   gap: 10px;
   margin: 5px 0 22px;
 }
-
 .checkline input {
   width: 20px;
   height: 20px;
   margin: 0;
 }
-
 .checkline label { margin: 0; }
-
 .hint {
   font-size: 13px;
   color: #64748b;
   line-height: 1.6;
 }
+.notice {
+  padding: 13px;
+  background: #fef3c7;
+  border-radius: 9px;
+  margin: 14px 0;
+  line-height: 1.6;
+}
+.row-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.secondary { background: #455d75; }
 
 @media (max-width: 650px) {
   .stats { grid-template-columns: 1fr 1fr; }
@@ -228,263 +199,247 @@ button:disabled {
 </head>
 
 <body>
-
 <header>
   <h1>MASS CONTROL</h1>
   <p>Gestión de caducidades y productos</p>
 </header>
 
 <main>
-
-  <!-- INICIO DE SESION -->
-
   <section id="loginPanel" class="card login">
     <h2>Iniciar sesión</h2>
-
     <form id="loginForm">
       <label for="usuario">Usuario</label>
-      <input id="usuario"
-             autocomplete="username"
-             required>
+      <input id="usuario" autocomplete="username" required>
 
       <label for="contrasena">Contraseña</label>
-      <input id="contrasena"
-             type="password"
-             autocomplete="current-password"
-             required>
+      <input id="contrasena" type="password"
+        autocomplete="current-password" required>
 
       <button id="entrar" type="submit">
         Entrar a Mass Control
       </button>
     </form>
-
-    <p id="loginError" class="message error"
-       role="alert"></p>
+    <p id="loginError" class="message error" role="alert"></p>
   </section>
 
-  <!-- PANEL PRINCIPAL -->
-
   <section id="panel" hidden>
-
     <div class="card topbar">
       <div>
         <strong id="cuenta"></strong>
         <p id="rol"></p>
       </div>
-
-      <button id="salir" class="logout">
-        Salir
-      </button>
+      <button id="salir" class="logout">Salir</button>
     </div>
-
-    <!-- INDICADORES -->
 
     <section id="estadisticas" class="stats">
       <div class="stat">
         Urgentes
         <strong id="urgentes">0</strong>
       </div>
-
       <div class="stat">
         Vencidas o de hoy
         <strong id="vencidas">0</strong>
       </div>
-
       <div class="stat">
         Total próximas
         <strong id="total">0</strong>
       </div>
     </section>
 
-    <!-- MENU -->
-
     <nav class="tabs" aria-label="Secciones">
-      <button type="button"
-              data-tab="proximas"
-              class="active">
-        Próximas
-      </button>
-
-      <button type="button"
-              data-tab="registradas">
+      <button type="button" data-tab="proximas"
+        class="active">Próximas</button>
+      <button type="button" data-tab="registradas">
         Alertas guardadas
       </button>
-
-      <button type="button"
-              data-tab="historial">
+      <button type="button" data-tab="historial">
         Historial
       </button>
-
-      <button type="button"
-              data-tab="productos">
+      <button type="button" data-tab="productos">
         Productos
       </button>
-
-      <button type="button"
-              data-tab="nuevo">
+      <button type="button" data-tab="nuevo">
         Nuevo producto
+      </button>
+      <button type="button" data-tab="nuevoLote">
+        Nuevo lote
       </button>
     </nav>
 
-    <!-- SECCIONES DE CONSULTA -->
-
     <section id="consultaPanel" class="card">
-
       <div class="topbar">
         <h2 id="titulo">Próximas caducidades</h2>
-
-        <button type="button" id="actualizar">
-          Actualizar
-        </button>
+        <button id="actualizar" type="button">Actualizar</button>
       </div>
-
-      <p id="estado" role="status"
-         aria-live="polite"></p>
-
+      <p id="estado" role="status"></p>
       <div id="contenido"></div>
-
     </section>
 
-    <!-- FORMULARIO REAL DE PRODUCTOS -->
-
     <section id="nuevoPanel" class="card" hidden>
-
       <h2>Registrar nuevo producto</h2>
-
       <p class="hint">
-        El producto se guardará únicamente después
-        de pulsar Registrar y confirmar la operación.
+        Solo se guardará cuando confirmes la operación.
       </p>
 
       <form id="productoForm">
-
         <div class="form-grid">
-
           <div>
-            <label for="codigoInterno">
-              Código interno *
-            </label>
-
-            <input id="codigoInterno"
-                   type="text"
-                   maxlength="100"
-                   autocomplete="off"
-                   required
-                   placeholder="Código del producto">
+            <label for="codigoInterno">Código interno *</label>
+            <input id="codigoInterno" maxlength="100"
+              autocomplete="off" required
+              placeholder="Código del producto">
           </div>
-
           <div>
             <label for="codigoBarras">
               Código de barras (opcional)
             </label>
-
-            <input id="codigoBarras"
-                   type="text"
-                   maxlength="100"
-                   autocomplete="off"
-                   placeholder="EAN del producto">
+            <input id="codigoBarras" maxlength="100"
+              autocomplete="off" placeholder="EAN">
           </div>
-
           <div class="full">
-            <label for="descripcion">
-              Descripción del producto *
-            </label>
-
-            <input id="descripcion"
-                   type="text"
-                   maxlength="500"
-                   required
-                   placeholder="Nombre, marca, peso o formato">
+            <label for="descripcion">Descripción *</label>
+            <input id="descripcion" maxlength="500"
+              required placeholder="Nombre, marca y formato">
           </div>
-
           <div class="full">
-            <label for="familia">
-              Familia *
-            </label>
-
+            <label for="familia">Familia *</label>
             <select id="familia" required>
-              <option value="">
-                Selecciona una familia
-              </option>
+              <option value="">Selecciona una familia</option>
             </select>
           </div>
-
           <div id="adminTienda" class="full" hidden>
-            <label for="tiendaId">
-              ID de la tienda *
-            </label>
-
-            <input id="tiendaId"
-                   type="number"
-                   min="1"
-                   step="1"
-                   placeholder="ID de la tienda">
-
-            <p class="hint">
-              Campo exclusivo del administrador.
-            </p>
+            <label for="tiendaId">ID de tienda *</label>
+            <input id="tiendaId" type="number"
+              min="1" step="1">
           </div>
-
           <div class="full checkline">
-            <input type="checkbox"
-                   id="controlaFecha"
-                   checked>
-
+            <input id="controlaFecha" type="checkbox" checked>
             <label for="controlaFecha">
               Controlar fecha de caducidad
             </label>
           </div>
-
         </div>
-
-        <button type="submit" id="registrarProducto">
+        <button id="registrarProducto" type="submit">
           Registrar producto
         </button>
-
       </form>
 
-      <p id="mensajeProducto"
-         class="message"
-         role="status"
-         aria-live="polite"></p>
-
+      <p id="mensajeProducto" class="message"
+        role="status"></p>
     </section>
 
-  </section>
+    <!-- NUEVO LOTE -->
 
+    <section id="lotePanel" class="card" hidden>
+      <h2>Registrar nuevo lote</h2>
+
+      <p class="hint">
+        Selecciona un producto que ya exista en Mass Control.
+        Comprueba la fecha en el envase antes de registrar
+        el lote.
+      </p>
+
+      <div id="adminLote" hidden>
+        <label for="tiendaLoteId">ID de tienda *</label>
+        <input id="tiendaLoteId" type="number"
+          min="1" step="1">
+        <button id="cargarProductosLote" type="button"
+          class="secondary">Cargar productos de tienda</button>
+      </div>
+
+      <form id="loteForm">
+        <div class="form-grid">
+          <div class="full">
+            <label for="productoLote">Producto *</label>
+            <select id="productoLote" required>
+              <option value="">Selecciona un producto</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="fechaLote">Fecha límite *</label>
+            <input id="fechaLote" type="date" required>
+          </div>
+
+          <div>
+            <label for="cantidadLote">Cantidad *</label>
+            <input id="cantidadLote" type="number"
+              min="1" max="1000000" step="1" required
+              placeholder="Unidades">
+          </div>
+
+          <div>
+            <label for="tipoFechaLote">Tipo de fecha *</label>
+            <select id="tipoFechaLote" required>
+              <option value="CADUCIDAD">Caducidad</option>
+              <option value="CONSUMO_PREFERENTE">
+                Consumo preferente
+              </option>
+            </select>
+          </div>
+
+          <div>
+            <label for="numeroLote">
+              Número de lote (opcional)
+            </label>
+            <input id="numeroLote" maxlength="100"
+              autocomplete="off"
+              placeholder="Número impreso en el envase">
+          </div>
+
+          <div class="full checkline">
+            <input id="revisionEnvase" type="checkbox"
+              required>
+            <label for="revisionEnvase">
+              He comprobado la fecha y cantidad del producto
+              físicamente.
+            </label>
+          </div>
+        </div>
+
+        <div class="notice">
+          El nuevo lote quedará pendiente de la confirmación
+          de fecha correspondiente. Registrar un lote no
+          retira unidades ni cierra alertas existentes.
+        </div>
+
+        <div class="row-actions">
+          <button id="guardarLote" type="submit">
+            Registrar lote
+          </button>
+          <button id="limpiarLote" type="button"
+            class="secondary">Limpiar formulario</button>
+        </div>
+      </form>
+
+      <p id="mensajeLote" class="message"
+        role="status"></p>
+    </section>
+  </section>
 </main>
 
 <script>
 "use strict";
 
-// ========================================
-// ESTADO DE LA APLICACION
-// ========================================
-
 let token = null;
 let perfilActual = null;
 let seccion = "proximas";
 let versionCarga = 0;
+let productosDisponibles = [];
 
 const $ = id => document.getElementById(id);
 
-// ========================================
-// CONSULTAS A LA API
-// ========================================
-
 async function solicitar(ruta, opciones = {}) {
-  const headers = {
-    ...(opciones.body
-      ? { "Content-Type": "application/json" }
-      : {}),
-    ...(token
-      ? { Authorization: "Bearer " + token }
-      : {})
-  };
-
   const respuesta = await fetch(ruta, {
     ...opciones,
-    headers,
+    headers: {
+      ...(opciones.body
+        ? {"Content-Type": "application/json"}
+        : {}),
+      ...(token
+        ? {Authorization: "Bearer " + token}
+        : {})
+    },
     cache: "no-store"
   });
 
@@ -495,127 +450,87 @@ async function solicitar(ruta, opciones = {}) {
     if (respuesta.status === 401 && token) {
       cerrarSesion();
     }
-
     throw new Error(
       datos.error || "Error HTTP " + respuesta.status
     );
   }
-
   return datos;
 }
 
-// ========================================
-// INICIO DE SESION
-// ========================================
+$("loginForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  $("entrar").disabled = true;
+  $("loginError").textContent = "";
 
-$("loginForm").addEventListener(
-  "submit",
-  async evento => {
-    evento.preventDefault();
+  try {
+    const login = await solicitar("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({
+        usuario: $("usuario").value.trim(),
+        contrasena: $("contrasena").value
+      })
+    });
 
-    $("entrar").disabled = true;
-    $("loginError").textContent = "";
-
-    try {
-      const datos = await solicitar(
-        "/api/auth/login",
-        {
-          method: "POST",
-          body: JSON.stringify({
-            usuario: $("usuario").value.trim(),
-            contrasena: $("contrasena").value
-          })
-        }
-      );
-
-      if (!datos.token) {
-        throw new Error("No se recibio la sesion");
-      }
-
-      token = datos.token;
-
-      const perfil = await solicitar("/api/auth/me");
-
-      perfilActual = perfil;
-
-      $("cuenta").textContent = perfil.usuario;
-
-      $("rol").textContent =
-        perfil.rol === "ADMIN"
-          ? "Administrador - Todas las tiendas"
-          : "Tienda ID: " + perfil.tienda_id;
-
-      $("adminTienda").hidden =
-        perfil.rol !== "ADMIN";
-
-      $("tiendaId").required =
-        perfil.rol === "ADMIN";
-
-      $("contrasena").value = "";
-
-      $("loginPanel").hidden = true;
-      $("panel").hidden = false;
-
-      await cambiarSeccion("proximas");
-
-    } catch (error) {
-      if (!$("loginPanel").hidden) {
-        token = null;
-        perfilActual = null;
-        $("loginError").textContent = error.message;
-      }
-    } finally {
-      $("entrar").disabled = false;
+    if (!login.token) {
+      throw new Error("No se recibio la sesion");
     }
-  }
-);
 
-// ========================================
-// CERRAR SESION
-// ========================================
+    token = login.token;
+    perfilActual = await solicitar("/api/auth/me");
+
+    $("cuenta").textContent = perfilActual.usuario;
+    $("rol").textContent =
+      perfilActual.rol === "ADMIN"
+      ? "Administrador - Todas las tiendas"
+      : "Tienda ID: " + perfilActual.tienda_id;
+
+    const admin = perfilActual.rol === "ADMIN";
+    $("adminTienda").hidden = !admin;
+    $("tiendaId").required = admin;
+    $("adminLote").hidden = !admin;
+    $("tiendaLoteId").required = admin;
+
+    $("contrasena").value = "";
+    $("loginPanel").hidden = true;
+    $("panel").hidden = false;
+
+    await cambiarSeccion("proximas");
+  } catch (error) {
+    if (!$("loginPanel").hidden) {
+      token = null;
+      perfilActual = null;
+      $("loginError").textContent = error.message;
+    }
+  } finally {
+    $("entrar").disabled = false;
+  }
+});
 
 function cerrarSesion() {
   versionCarga++;
   token = null;
   perfilActual = null;
+  productosDisponibles = [];
 
   $("loginPanel").hidden = false;
   $("panel").hidden = true;
-
   $("contrasena").value = "";
   $("productoForm").reset();
-  $("mensajeProducto").textContent = "";
+  $("loteForm").reset();
   $("contenido").replaceChildren();
+  $("mensajeProducto").textContent = "";
+  $("mensajeLote").textContent = "";
 }
 
 $("salir").addEventListener("click", cerrarSesion);
 
-// ========================================
-// ETIQUETAS Y TARJETAS
-// ========================================
-
 function estiloEstado(valor) {
-  if (
-    ["VENCIDO", "VENCE_HOY", "URGENTE"]
-      .includes(valor)
-  ) {
-    return "danger";
-  }
-
-  if (
-    ["PRIMERA", "PENDIENTE", "SIN_POLITICA"]
-      .includes(valor)
-  ) {
-    return "warn";
-  }
-
-  if (
-    ["REVISADA", "CERRADA", "ACTIVO"]
-      .includes(valor)
-  ) {
-    return "ok";
-  }
-
+  if (["VENCIDO", "VENCE_HOY", "URGENTE"]
+      .includes(valor)) return "danger";
+  if (["PRIMERA", "PENDIENTE", "SIN_POLITICA"]
+      .includes(valor)) return "warn";
+  if (["REVISADA", "CERRADA", "ACTIVO"]
+      .includes(valor)) return "ok";
   return "";
 }
 
@@ -630,9 +545,7 @@ function agregarElemento(titulo, detalle, etiqueta) {
   nombre.textContent = titulo || "Sin descripcion";
 
   const estado = document.createElement("span");
-  estado.className =
-    "tag " + estiloEstado(etiqueta);
-
+  estado.className = "tag " + estiloEstado(etiqueta);
   estado.textContent = etiqueta || "REGISTRO";
 
   cabecera.append(nombre, estado);
@@ -644,83 +557,70 @@ function agregarElemento(titulo, detalle, etiqueta) {
   $("contenido").appendChild(item);
 }
 
-// ========================================
-// CAMBIAR DE SECCION
-// ========================================
-
 async function cambiarSeccion(nombre) {
   seccion = nombre;
   versionCarga++;
 
   document.querySelectorAll("[data-tab]")
-    .forEach(boton => {
-      boton.classList.toggle(
-        "active",
-        boton.dataset.tab === nombre
-      );
-    });
+    .forEach(b => b.classList.toggle(
+      "active", b.dataset.tab === nombre
+    ));
 
-  const esFormulario = nombre === "nuevo";
+  $("nuevoPanel").hidden = nombre !== "nuevo";
+  $("lotePanel").hidden = nombre !== "nuevoLote";
+  $("consultaPanel").hidden =
+    nombre === "nuevo" || nombre === "nuevoLote";
 
-  $("nuevoPanel").hidden = !esFormulario;
-  $("consultaPanel").hidden = esFormulario;
+  $("estadisticas").hidden = nombre !== "proximas";
 
-  $("estadisticas").hidden =
-    nombre !== "proximas";
-
-  if (esFormulario) {
+  if (nombre === "nuevo") {
     await cargarFamilias();
+  } else if (nombre === "nuevoLote") {
+    if (perfilActual?.rol === "ADMIN") {
+      $("productoLote").replaceChildren(
+        new Option("Introduce una tienda y carga productos", "")
+      );
+      $("guardarLote").disabled = true;
+    } else {
+      await cargarProductosParaLote();
+    }
   } else {
     await cargar();
   }
 }
 
-document.querySelectorAll("[data-tab]")
-  .forEach(boton => {
-    boton.addEventListener("click", () => {
-      cambiarSeccion(boton.dataset.tab);
-    });
-  });
-
-// ========================================
-// CONSULTAR PROXIMAS, ALERTAS,
-// HISTORIAL Y PRODUCTOS
-// ========================================
+document.querySelectorAll("[data-tab]").forEach(b => {
+  b.addEventListener("click", () =>
+    cambiarSeccion(b.dataset.tab)
+  );
+});
 
 async function cargar() {
   if (!token) return;
 
   const miVersion = ++versionCarga;
-
   $("contenido").replaceChildren();
-  $("estado").textContent =
-    "Consultando Mass Control...";
+  $("estado").textContent = "Consultando Mass Control...";
 
   try {
     let datos;
     let lista = [];
 
     if (seccion === "proximas") {
-      $("titulo").textContent =
-        "Próximas caducidades";
-
+      $("titulo").textContent = "Próximas caducidades";
       datos = await solicitar("/api/alertas/proximas");
       lista = datos.alertas || [];
 
       if (miVersion !== versionCarga) return;
 
       $("total").textContent = lista.length;
-
-      $("urgentes").textContent =
-        lista.filter(a =>
-          a.tipo_alerta === "URGENTE"
-        ).length;
-
-      $("vencidas").textContent =
-        lista.filter(a =>
-          ["VENCIDO", "VENCE_HOY"]
-            .includes(a.tipo_alerta)
-        ).length;
+      $("urgentes").textContent = lista.filter(a =>
+        a.tipo_alerta === "URGENTE"
+      ).length;
+      $("vencidas").textContent = lista.filter(a =>
+        ["VENCIDO", "VENCE_HOY"]
+          .includes(a.tipo_alerta)
+      ).length;
 
       lista.forEach(a => agregarElemento(
         a.descripcion,
@@ -730,16 +630,9 @@ async function cargar() {
         " · Lote: " + a.lote_id,
         a.tipo_alerta
       ));
-    }
-
-    else if (seccion === "registradas") {
-      $("titulo").textContent =
-        "Alertas registradas";
-
-      datos = await solicitar(
-        "/api/alertas/registradas"
-      );
-
+    } else if (seccion === "registradas") {
+      $("titulo").textContent = "Alertas registradas";
+      datos = await solicitar("/api/alertas/registradas");
       lista = datos.alertas || [];
 
       if (miVersion !== versionCarga) return;
@@ -752,33 +645,22 @@ async function cargar() {
         " · Tipo: " + a.tipo,
         a.estado
       ));
-    }
-
-    else if (seccion === "historial") {
-      $("titulo").textContent =
-        "Historial de movimientos";
-
-      datos = await solicitar(
-        "/api/historial?limite=50"
-      );
-
+    } else if (seccion === "historial") {
+      $("titulo").textContent = "Historial de movimientos";
+      datos = await solicitar("/api/historial?limite=50");
       lista = datos.movimientos || [];
 
       if (miVersion !== versionCarga) return;
 
       lista.forEach(m => agregarElemento(
-        m.descripcion || ("Lote " + m.lote_id),
+        m.descripcion || "Lote " + m.lote_id,
         "Movimiento: " + m.accion +
         " · Cuenta: " + (m.cuenta || "Sin identificar") +
         " · Fecha: " + m.registrado_en,
         m.accion
       ));
-    }
-
-    else if (seccion === "productos") {
-      $("titulo").textContent =
-        "Productos registrados";
-
+    } else if (seccion === "productos") {
+      $("titulo").textContent = "Productos registrados";
       datos = await solicitar("/api/productos");
       lista = datos.productos || [];
 
@@ -797,11 +679,9 @@ async function cargar() {
 
     if (miVersion !== versionCarga) return;
 
-    $("estado").textContent =
-      lista.length
-        ? lista.length + " registros encontrados"
-        : "No hay registros en esta sección.";
-
+    $("estado").textContent = lista.length
+      ? lista.length + " registros encontrados"
+      : "No hay registros en esta sección.";
   } catch (error) {
     if (miVersion === versionCarga) {
       $("estado").textContent = error.message;
@@ -811,209 +691,323 @@ async function cargar() {
 
 $("actualizar").addEventListener("click", cargar);
 
-// ========================================
-// CARGAR FAMILIAS REALES
-// ========================================
+// FAMILIAS
 
 async function cargarFamilias() {
   if (!token) return;
 
   const miVersion = versionCarga;
   const selector = $("familia");
-
-  selector.replaceChildren();
-
-  const inicial = document.createElement("option");
-  inicial.value = "";
-  inicial.textContent = "Cargando familias...";
-  selector.appendChild(inicial);
-
+  selector.replaceChildren(
+    new Option("Cargando familias...", "")
+  );
   $("registrarProducto").disabled = true;
-  $("mensajeProducto").textContent = "";
 
   try {
-    const datos = await solicitar(
-      "/api/productos/familias"
-    );
-
-    if (
-      miVersion !== versionCarga ||
-      seccion !== "nuevo"
-    ) return;
+    const datos = await solicitar("/api/productos/familias");
+    if (miVersion !== versionCarga) return;
 
     const familias = Array.isArray(datos)
-      ? datos
-      : datos.familias || [];
+      ? datos : datos.familias || [];
 
-    selector.replaceChildren();
-
-    const opcion = document.createElement("option");
-    opcion.value = "";
-    opcion.textContent = "Selecciona una familia";
-    selector.appendChild(opcion);
+    selector.replaceChildren(
+      new Option("Selecciona una familia", "")
+    );
 
     familias.forEach(f => {
-      const nueva = document.createElement("option");
-      nueva.value = String(f.id);
-      nueva.textContent = f.nombre +
-        (f.codigo ? " (" + f.codigo + ")" : "");
-
-      selector.appendChild(nueva);
+      selector.add(new Option(
+        f.nombre + (f.codigo ? " (" + f.codigo + ")" : ""),
+        String(f.id)
+      ));
     });
 
-    if (!familias.length) {
-      throw new Error(
-        "No hay familias disponibles"
-      );
-    }
-
-    $("registrarProducto").disabled = false;
-
+    $("registrarProducto").disabled = !familias.length;
   } catch (error) {
     if (miVersion === versionCarga) {
-      $("mensajeProducto").className =
-        "message error";
-
-      $("mensajeProducto").textContent =
-        "No se pudieron cargar las familias: " +
-        error.message;
+      $("mensajeProducto").className = "message error";
+      $("mensajeProducto").textContent = error.message;
     }
   }
 }
 
-// ========================================
-// REGISTRAR PRODUCTO REAL
-// ========================================
+// REGISTRAR PRODUCTO
 
-$("productoForm").addEventListener(
-  "submit",
-  async evento => {
-    evento.preventDefault();
+$("productoForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  if (!token || !perfilActual) return;
 
-    if (!token || !perfilActual) return;
+  const codigo = $("codigoInterno").value.trim();
+  const descripcion = $("descripcion").value.trim();
+  const barras = $("codigoBarras").value.trim();
+  const familia = $("familia").value;
+  const tienda = $("tiendaId").value.trim();
+  const admin = perfilActual.rol === "ADMIN";
 
-    const codigo =
-      $("codigoInterno").value.trim();
-
-    const descripcion =
-      $("descripcion").value.trim();
-
-    const barras =
-      $("codigoBarras").value.trim();
-
-    const familia =
-      $("familia").value;
-
-    const controlaFecha =
-      $("controlaFecha").checked;
-
-    const tienda =
-      $("tiendaId").value.trim();
-
-    if (
-      !codigo ||
-      codigo.length > 100 ||
-      !descripcion ||
-      descripcion.length > 500 ||
-      barras.length > 100 ||
-      !/^[1-9]\d*$/.test(familia)
-    ) {
-      $("mensajeProducto").className =
-        "message error";
-
-      $("mensajeProducto").textContent =
-        "Revisa los datos obligatorios.";
-
-      return;
-    }
-
-    if (
-      perfilActual.rol === "ADMIN" &&
-      !/^[1-9]\d*$/.test(tienda)
-    ) {
-      $("mensajeProducto").className =
-        "message error";
-
-      $("mensajeProducto").textContent =
-        "Introduce una tienda valida.";
-
-      return;
-    }
-
-    const datos = {
-      codigo_interno: codigo,
-      descripcion: descripcion,
-      codigo_barras: barras || null,
-      familia_id: Number(familia),
-      controla_fecha: controlaFecha
-    };
-
-    if (perfilActual.rol === "ADMIN") {
-      datos.tienda_id = Number(tienda);
-    }
-
-    const nombreFamilia =
-      $("familia").selectedOptions[0]?.textContent
-      || "Sin familia";
-
-    const confirmado = window.confirm(
-      "¿Registrar este producto en Mass Control?\n\n" +
-      "Código: " + codigo + "\n" +
-      "Descripción: " + descripcion + "\n" +
-      "Familia: " + nombreFamilia + "\n\n" +
-      "La operación guardará el producto en PostgreSQL."
-    );
-
-    if (!confirmado) return;
-
-    const boton = $("registrarProducto");
-    boton.disabled = true;
-
-    $("mensajeProducto").className = "message";
+  if (!codigo || !descripcion ||
+      !/^[1-9]\d*$/.test(familia) ||
+      (admin && !/^[1-9]\d*$/.test(tienda))) {
     $("mensajeProducto").textContent =
-      "Guardando producto...";
+      "Revisa los campos obligatorios.";
+    return;
+  }
 
-    try {
-      const resultado = await solicitar(
-        "/api/productos",
-        {
-          method: "POST",
-          body: JSON.stringify(datos)
-        }
+  const datos = {
+    codigo_interno: codigo,
+    descripcion,
+    codigo_barras: barras || null,
+    familia_id: Number(familia),
+    controla_fecha: $("controlaFecha").checked
+  };
+
+  if (admin) datos.tienda_id = Number(tienda);
+
+  if (!confirm(
+    "¿Registrar este producto?\n\n" +
+    "Código: " + codigo + "\n" +
+    "Descripción: " + descripcion + "\n\n" +
+    "Se guardará en PostgreSQL."
+  )) return;
+
+  const boton = $("registrarProducto");
+  boton.disabled = true;
+
+  try {
+    const respuesta = await solicitar("/api/productos", {
+      method: "POST",
+      body: JSON.stringify(datos)
+    });
+
+    $("mensajeProducto").className = "message success";
+    $("mensajeProducto").textContent =
+      "Producto registrado. ID: " +
+      respuesta.producto.id;
+
+    $("productoForm").reset();
+    $("familia").value = "";
+  } catch (error) {
+    $("mensajeProducto").className = "message error";
+    $("mensajeProducto").textContent = error.message;
+  } finally {
+    if (token) boton.disabled = false;
+  }
+});
+
+// PRODUCTOS DISPONIBLES PARA NUEVO LOTE
+
+async function cargarProductosParaLote() {
+  if (!token || !perfilActual) return;
+
+  const miVersion = versionCarga;
+  const selector = $("productoLote");
+  const boton = $("guardarLote");
+  const admin = perfilActual.rol === "ADMIN";
+
+  selector.replaceChildren(
+    new Option("Cargando productos...", "")
+  );
+  boton.disabled = true;
+  $("mensajeLote").textContent = "";
+  productosDisponibles = [];
+
+  try {
+    let ruta = "/api/productos";
+
+    if (admin) {
+      const tienda = $("tiendaLoteId").value.trim();
+      if (!/^[1-9]\d*$/.test(tienda)) {
+        throw new Error("Introduce una tienda válida.");
+      }
+      ruta += "?tienda_id=" + encodeURIComponent(tienda);
+    }
+
+    const datos = await solicitar(ruta);
+    if (miVersion !== versionCarga ||
+        seccion !== "nuevoLote") return;
+
+    const tiendaEsperada = admin
+      ? $("tiendaLoteId").value.trim()
+      : String(perfilActual.tienda_id);
+
+    productosDisponibles = (datos.productos || [])
+      .filter(p =>
+        p.activo === true &&
+        p.controla_fecha === true &&
+        String(p.tienda_id) === tiendaEsperada
       );
 
-      if (!resultado.producto?.id) {
-        throw new Error(
-          "El servidor no devolvio el producto creado"
-        );
-      }
+    selector.replaceChildren(
+      new Option("Selecciona un producto", "")
+    );
 
-      $("mensajeProducto").className =
-        "message success";
+    productosDisponibles.forEach(p => {
+      selector.add(new Option(
+        p.codigo_interno + " - " + p.descripcion,
+        String(p.id)
+      ));
+    });
 
-      $("mensajeProducto").textContent =
-        "PRODUCTO REGISTRADO CORRECTAMENTE. " +
-        "ID: " + resultado.producto.id +
-        " · Código: " +
-        resultado.producto.codigo_interno;
+    boton.disabled = !productosDisponibles.length;
 
-      $("productoForm").reset();
-      $("familia").value = "";
-
-    } catch (error) {
-      $("mensajeProducto").className =
-        "message error";
-
-      $("mensajeProducto").textContent =
-        "No se pudo registrar: " + error.message;
-
-    } finally {
-      if (token) {
-        boton.disabled = false;
-      }
+    if (!productosDisponibles.length) {
+      $("mensajeLote").className = "message error";
+      $("mensajeLote").textContent =
+        "No hay productos activos con control de fecha " +
+        "en esta consulta.";
+    } else if ((datos.productos || []).length >= 100) {
+      $("mensajeLote").className = "message";
+      $("mensajeLote").textContent =
+        "Se muestran hasta 100 productos. " +
+        "Más adelante añadiremos búsqueda y paginación.";
+    }
+  } catch (error) {
+    if (miVersion === versionCarga) {
+      $("mensajeLote").className = "message error";
+      $("mensajeLote").textContent = error.message;
     }
   }
+}
+
+$("cargarProductosLote").addEventListener(
+  "click", cargarProductosParaLote
 );
+
+$("tiendaLoteId").addEventListener("input", () => {
+  productosDisponibles = [];
+  $("productoLote").replaceChildren(
+    new Option("Carga los productos de esta tienda", "")
+  );
+  $("guardarLote").disabled = true;
+});
+
+// REGISTRO DE LOTE
+
+$("loteForm").addEventListener("submit", async e => {
+  e.preventDefault();
+
+  if (!token || !perfilActual) return;
+
+  const productoId = $("productoLote").value;
+  const fecha = $("fechaLote").value;
+  const cantidadTexto = $("cantidadLote").value;
+  const tipoFecha = $("tipoFechaLote").value;
+  const numero = $("numeroLote").value.trim();
+
+  const producto = productosDisponibles.find(
+    p => String(p.id) === productoId
+  );
+
+  const cantidad = Number(cantidadTexto);
+
+  const fechaValida = /^\d{4}-\d{2}-\d{2}$/.test(fecha) &&
+    !Number.isNaN(Date.parse(fecha)) &&
+    new Date(fecha + "T12:00:00Z")
+      .toISOString().slice(0, 10) === fecha;
+
+  const mensaje = $("mensajeLote");
+  mensaje.className = "message error";
+
+  if (
+    !producto ||
+    !fechaValida ||
+    !Number.isSafeInteger(cantidad) ||
+    cantidad < 1 ||
+    cantidad > 1000000 ||
+    !["CADUCIDAD", "CONSUMO_PREFERENTE"]
+      .includes(tipoFecha) ||
+    numero.length > 100 ||
+    !$("revisionEnvase").checked
+  ) {
+    mensaje.textContent =
+      "Comprueba el producto, fecha, cantidad y " +
+      "la verificación física.";
+    return;
+  }
+
+  if (
+    perfilActual.rol === "TIENDA" &&
+    String(producto.tienda_id) !==
+      String(perfilActual.tienda_id)
+  ) {
+    mensaje.textContent =
+      "El producto no corresponde a esta tienda.";
+    return;
+  }
+
+  const hoy = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Madrid",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(new Date());
+
+  const aviso = fecha <= hoy
+    ? "\nATENCIÓN: La fecha es de hoy o anterior."
+    : "";
+
+  const confirmado = confirm(
+    "¿Registrar este lote en Mass Control?\n\n" +
+    "Producto: " + producto.descripcion + "\n" +
+    "Código: " + producto.codigo_interno + "\n" +
+    "Fecha límite: " + fecha + "\n" +
+    "Tipo: " + tipoFecha + "\n" +
+    "Cantidad: " + cantidad + "\n" +
+    "Número de lote: " + (numero || "Sin indicar") +
+    aviso +
+    "\n\nSe guardará en PostgreSQL."
+  );
+
+  if (!confirmado) return;
+
+  const datos = {
+    producto_id: Number(productoId),
+    numero_lote: numero || null,
+    fecha_limite: fecha,
+    tipo_fecha: tipoFecha,
+    cantidad: cantidad
+  };
+
+  const boton = $("guardarLote");
+  boton.disabled = true;
+  mensaje.className = "message";
+  mensaje.textContent = "Registrando lote...";
+
+  try {
+    const respuesta = await solicitar("/api/lotes", {
+      method: "POST",
+      body: JSON.stringify(datos)
+    });
+
+    if (!respuesta.lote?.id) {
+      throw new Error(
+        "El servidor no devolvió el identificador del lote."
+      );
+    }
+
+    mensaje.className = "message success";
+    mensaje.textContent =
+      "LOTE REGISTRADO. ID: " +
+      respuesta.lote.id +
+      " · Estado: " +
+      (respuesta.lote.estado || "Consultar estado");
+
+    $("loteForm").reset();
+    $("productoLote").value = "";
+
+  } catch (error) {
+    mensaje.className = "message error";
+    mensaje.textContent =
+      "No se pudo confirmar el registro: " +
+      error.message +
+      ". Comprueba la lista de lotes antes de reintentar.";
+  } finally {
+    if (token) boton.disabled = false;
+  }
+});
+
+$("limpiarLote").addEventListener("click", () => {
+  $("loteForm").reset();
+  $("mensajeLote").textContent = "";
+});
 
 </script>
 </body>
