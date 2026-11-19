@@ -332,5 +332,129 @@ module.exports = function crearRutasAlertas(pool, autenticar) {
     }
   });
 
+  // ========================================
+  // MARCAR ALERTA COMO REVISADA
+  // ========================================
+
+  router.patch("/:id/revisar", async (req, res) => {
+    const alertaId = req.params.id;
+    const observaciones = req.body?.observaciones;
+
+    if (
+      !idValido(alertaId) ||
+      req.body?.revision_fisica !== true ||
+      typeof observaciones !== "string" ||
+      observaciones.trim().length < 5 ||
+      observaciones.length > 500
+    ) {
+      return res.status(400).json({
+        error: "Revision fisica y observaciones obligatorias"
+      });
+    }
+
+    let client;
+
+    try {
+      client = await pool.connect();
+      await client.query("BEGIN");
+
+      const consulta = await client.query(
+        `SELECT
+           a.id,
+           a.lote_id,
+           a.tipo,
+           a.estado,
+           p.tienda_id
+         FROM mass_control.alertas a
+         JOIN mass_control.lotes l
+           ON l.id = a.lote_id
+         JOIN mass_control.productos p
+           ON p.id = l.producto_id
+         WHERE a.id = $1
+         FOR UPDATE OF a`,
+        [alertaId]
+      );
+
+      const alerta = consulta.rows[0];
+
+      if (
+        !alerta ||
+        (
+          req.cuenta.rol !== "ADMIN" &&
+          String(alerta.tienda_id) !==
+          String(req.cuenta.tienda_id)
+        )
+      ) {
+        await client.query("ROLLBACK");
+        return res.status(404).json({
+          error: "Alerta no encontrada"
+        });
+      }
+
+      if (alerta.estado !== "PENDIENTE") {
+        await client.query("ROLLBACK");
+        return res.status(409).json({
+          error: "La alerta ya fue gestionada"
+        });
+      }
+
+      const actualizado = await client.query(
+        `UPDATE mass_control.alertas
+         SET estado = 'REVISADA',
+             revisada_en = NOW()
+         WHERE id = $1
+         RETURNING id, lote_id, tipo,
+                   estado, revisada_en`,
+        [alertaId]
+      );
+
+      await client.query(
+        `INSERT INTO mass_control.movimientos
+         (lote_id, cuenta_id, accion,
+          datos_anteriores, datos_nuevos,
+          observaciones)
+         VALUES ($1, $2, $3, $4::jsonb,
+                 $5::jsonb, $6)`,
+        [
+          alerta.lote_id,
+          req.cuenta.id,
+          "REVISION_ALERTA",
+          JSON.stringify({
+            alerta_id: alerta.id,
+            estado: alerta.estado
+          }),
+          JSON.stringify({
+            alerta_id: alerta.id,
+            estado: "REVISADA"
+          }),
+          observaciones.trim()
+        ]
+      );
+
+      await client.query("COMMIT");
+
+      res.json({
+        mensaje: "Alerta revisada correctamente",
+        alerta: actualizado.rows[0]
+      });
+
+    } catch (error) {
+      if (client) {
+        try {
+          await client.query("ROLLBACK");
+        } catch (_) {}
+      }
+
+      console.error("Revision alerta:", error.code);
+
+      res.status(500).json({
+        error: "No se pudo revisar la alerta"
+      });
+
+    } finally {
+      if (client) client.release();
+    }
+  });
+
   return router;
 };
