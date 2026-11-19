@@ -217,5 +217,64 @@ module.exports = function crearRutasProductos(pool, autenticar) {
     }
   });
 
+  // ASIGNAR FAMILIA A UN PRODUCTO
+  router.patch("/:id/familia", async (req, res) => {
+    const productoId = req.params.id;
+    const familiaId = req.body?.familia_id;
+
+    if (!idValido(productoId) ||
+        !idValido(familiaId)) {
+      return res.status(400).json({
+        error: "Identificadores no validos"
+      });
+    }
+
+    const admin = req.cuenta.rol === "ADMIN";
+
+    try {
+      const resultado = await pool.query(
+        `UPDATE mass_control.productos AS p
+         SET familia_id = $2
+         WHERE p.id = $1
+           AND ($3::boolean
+                OR p.tienda_id = $4::bigint)
+           AND EXISTS (
+             SELECT 1
+             FROM mass_control.familias f
+             WHERE f.id = $2
+           )
+         RETURNING
+           p.id,
+           p.tienda_id,
+           p.codigo_interno,
+           p.descripcion,
+           p.familia_id`,
+        [
+          productoId,
+          familiaId,
+          admin,
+          req.cuenta.tienda_id
+        ]
+      );
+
+      if (!resultado.rows.length) {
+        return res.status(404).json({
+          error: "Producto o familia no encontrado"
+        });
+      }
+
+      res.json({
+        producto: resultado.rows[0]
+      });
+
+    } catch (error) {
+      console.error("Asignar familia:", error.code);
+
+      res.status(500).json({
+        error: "No se pudo asignar la familia"
+      });
+    }
+  });
+
   return router;
 };
