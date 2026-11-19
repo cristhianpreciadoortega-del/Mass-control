@@ -1,0 +1,482 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mass Control</title>
+
+<style>
+:root {
+  font-family: Arial, sans-serif;
+  color: #182536;
+  background: #f1f5f9;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+body { margin: 0; }
+
+header {
+  background: #102a43;
+  color: white;
+  padding: 20px;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 24px;
+}
+
+header p {
+  margin: 6px 0 0;
+  opacity: .85;
+}
+
+main {
+  max-width: 950px;
+  margin: 24px auto;
+  padding: 0 16px;
+}
+
+.card {
+  background: white;
+  border-radius: 14px;
+  padding: 22px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 12px #0000000d;
+}
+
+.login {
+  max-width: 420px;
+  margin: 55px auto;
+}
+
+h2 { margin-top: 0; }
+
+label {
+  display: block;
+  font-weight: bold;
+  margin-bottom: 7px;
+}
+
+input {
+  display: block;
+  width: 100%;
+  padding: 13px;
+  margin-bottom: 18px;
+  font-size: 16px;
+  border: 1px solid #cad5e1;
+  border-radius: 9px;
+}
+
+button {
+  padding: 12px 17px;
+  border: 0;
+  border-radius: 9px;
+  background: #176b50;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+button:disabled { opacity: .6; }
+button:hover:not(:disabled) { filter: brightness(.95); }
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 18px 0;
+}
+
+.tabs button { background: #455d75; }
+.tabs button.active { background: #176b50; }
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.logout { background: #334155; }
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.stat {
+  border-radius: 12px;
+  padding: 17px;
+  background: #eaf1f6;
+}
+
+.stat strong {
+  display: block;
+  margin-top: 7px;
+  font-size: 29px;
+}
+
+.item {
+  padding: 17px 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.item:last-child { border-bottom: 0; }
+
+.item-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.item strong { line-height: 1.4; }
+
+.item p {
+  color: #475569;
+  font-size: 14px;
+  line-height: 1.7;
+  margin-bottom: 0;
+}
+
+.tag {
+  padding: 6px 9px;
+  border-radius: 7px;
+  background: #e2e8f0;
+  font-size: 11px;
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+.tag.danger {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+.tag.warn {
+  color: #92400e;
+  background: #fef3c7;
+}
+
+.tag.ok {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.message {
+  margin-top: 12px;
+  color: #b91c1c;
+  min-height: 20px;
+}
+
+@media(max-width: 600px) {
+  .stats { grid-template-columns: 1fr 1fr; }
+  .card { padding: 16px; }
+  .item-head { flex-direction: column; }
+  header h1 { font-size: 21px; }
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>MASS CONTROL</h1>
+  <p>Gestión de caducidades y productos</p>
+</header>
+
+<main>
+  <section id="loginPanel" class="card login">
+    <h2>Iniciar sesión</h2>
+
+    <form id="loginForm">
+      <label for="usuario">Usuario</label>
+      <input id="usuario" autocomplete="username" required>
+
+      <label for="contrasena">Contraseña</label>
+      <input id="contrasena" type="password"
+             autocomplete="current-password" required>
+
+      <button id="entrar" type="submit">
+        Entrar a Mass Control
+      </button>
+    </form>
+
+    <p id="loginError" class="message" role="alert"></p>
+  </section>
+
+  <section id="panel" hidden>
+
+    <div class="card topbar">
+      <div>
+        <strong id="cuenta">Tienda Mass</strong>
+        <p id="rol"></p>
+      </div>
+      <button id="salir" class="logout">Salir</button>
+    </div>
+
+    <section id="estadisticas" class="stats">
+      <div class="stat">
+        Urgentes
+        <strong id="urgentes">0</strong>
+      </div>
+      <div class="stat">
+        Vencidas o de hoy
+        <strong id="vencidas">0</strong>
+      </div>
+      <div class="stat">
+        Total próximas
+        <strong id="total">0</strong>
+      </div>
+    </section>
+
+    <nav class="tabs" aria-label="Secciones">
+      <button data-tab="proximas" class="active">
+        Próximas
+      </button>
+      <button data-tab="registradas">
+        Alertas guardadas
+      </button>
+      <button data-tab="historial">
+        Historial
+      </button>
+    </nav>
+
+    <section class="card">
+      <div class="topbar">
+        <h2 id="titulo">Próximas caducidades</h2>
+        <button id="actualizar">Actualizar</button>
+      </div>
+
+      <p id="estado" role="status" aria-live="polite"></p>
+      <div id="contenido"></div>
+    </section>
+
+  </section>
+</main>
+
+<script>
+let token = null;
+let seccion = "proximas";
+
+const $ = (id) => document.getElementById(id);
+
+async function solicitar(ruta, opciones = {}) {
+  const respuesta = await fetch(ruta, {
+    ...opciones,
+    headers: {
+      ...(opciones.body
+        ? { "Content-Type": "application/json" }
+        : {}),
+      ...(token
+        ? { Authorization: "Bearer " + token }
+        : {})
+    }
+  });
+
+  const datos = await respuesta.json().catch(() => ({}));
+
+  if (!respuesta.ok) {
+    if (respuesta.status === 401 && token) {
+      cerrarSesion();
+    }
+    throw new Error(datos.error || "Error HTTP " + respuesta.status);
+  }
+
+  return datos;
+}
+
+$("loginForm").addEventListener("submit", async (evento) => {
+  evento.preventDefault();
+
+  $("entrar").disabled = true;
+  $("loginError").textContent = "";
+
+  try {
+    const datos = await solicitar("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({
+        usuario: $("usuario").value.trim(),
+        contrasena: $("contrasena").value
+      })
+    });
+
+    if (!datos.token) {
+      throw new Error("No se recibió la sesión");
+    }
+
+    token = datos.token;
+
+    const perfil = await solicitar("/api/auth/me");
+
+    $("cuenta").textContent = perfil.usuario;
+    $("rol").textContent =
+      perfil.rol === "ADMIN"
+        ? "Administrador · Todas las tiendas"
+        : "Tienda ID: " + perfil.tienda_id;
+
+    $("contrasena").value = "";
+    $("loginPanel").hidden = true;
+    $("panel").hidden = false;
+
+    await cargar();
+
+  } catch (error) {
+    $("loginError").textContent = error.message;
+  } finally {
+    $("entrar").disabled = false;
+  }
+});
+
+function cerrarSesion() {
+  token = null;
+  $("loginPanel").hidden = false;
+  $("panel").hidden = true;
+  $("contrasena").value = "";
+  $("contenido").replaceChildren();
+}
+
+$("salir").addEventListener("click", cerrarSesion);
+
+function estiloEstado(valor) {
+  if (["VENCIDO", "VENCE_HOY", "URGENTE"].includes(valor)) {
+    return "danger";
+  }
+
+  if (["PRIMERA", "PENDIENTE", "SIN_POLITICA"].includes(valor)) {
+    return "warn";
+  }
+
+  if (["REVISADA", "CERRADA"].includes(valor)) {
+    return "ok";
+  }
+
+  return "";
+}
+
+function agregarElemento(titulo, detalle, etiqueta) {
+  const item = document.createElement("article");
+  item.className = "item";
+
+  const cabecera = document.createElement("div");
+  cabecera.className = "item-head";
+
+  const nombre = document.createElement("strong");
+  nombre.textContent = titulo;
+
+  const estado = document.createElement("span");
+  estado.className = "tag " + estiloEstado(etiqueta);
+  estado.textContent = etiqueta || "REGISTRO";
+
+  cabecera.append(nombre, estado);
+
+  const descripcion = document.createElement("p");
+  descripcion.textContent = detalle;
+
+  item.append(cabecera, descripcion);
+  $("contenido").appendChild(item);
+}
+
+async function cargar() {
+  if (!token) return;
+
+  $("contenido").replaceChildren();
+  $("estado").textContent = "Consultando Mass Control...";
+
+  $("estadisticas").hidden = seccion !== "proximas";
+
+  try {
+    let datos;
+    let lista;
+
+    if (seccion === "proximas") {
+      $("titulo").textContent = "Próximas caducidades";
+
+      datos = await solicitar("/api/alertas/proximas");
+      lista = datos.alertas || [];
+
+      $("total").textContent = lista.length;
+
+      $("urgentes").textContent = lista.filter(
+        a => a.tipo_alerta === "URGENTE"
+      ).length;
+
+      $("vencidas").textContent = lista.filter(
+        a => ["VENCIDO", "VENCE_HOY"]
+          .includes(a.tipo_alerta)
+      ).length;
+
+      lista.forEach(a => agregarElemento(
+        a.descripcion,
+        "Código: " + a.codigo_interno +
+        " · Caducidad: " + a.fecha_caducidad +
+        " · Cantidad: " + a.cantidad +
+        " · Lote: " + a.lote_id,
+        a.tipo_alerta
+      ));
+    }
+
+    else if (seccion === "registradas") {
+      $("titulo").textContent = "Alertas registradas";
+
+      datos = await solicitar("/api/alertas/registradas");
+      lista = datos.alertas || [];
+
+      lista.forEach(a => agregarElemento(
+        a.descripcion,
+        "Código: " + a.codigo_interno +
+        " · Caducidad: " + a.fecha_caducidad +
+        " · Cantidad: " + a.cantidad +
+        " · Tipo: " + a.tipo,
+        a.estado
+      ));
+    }
+
+    else {
+      $("titulo").textContent = "Historial de movimientos";
+
+      datos = await solicitar("/api/historial?limite=50");
+      lista = datos.movimientos || [];
+
+      lista.forEach(m => agregarElemento(
+        m.descripcion || ("Lote " + m.lote_id),
+        "Movimiento: " + m.accion +
+        " · Cuenta: " + (m.cuenta || "Sin identificar") +
+        " · Fecha: " + m.registrado_en,
+        m.accion
+      ));
+    }
+
+    $("estado").textContent =
+      lista.length + " registros encontrados";
+
+    if (lista.length === 0) {
+      $("estado").textContent = "No hay registros en esta sección.";
+    }
+
+  } catch (error) {
+    $("estado").textContent = error.message;
+  }
+}
+
+document.querySelectorAll("[data-tab]").forEach(boton => {
+  boton.addEventListener("click", () => {
+    seccion = boton.dataset.tab;
+
+    document.querySelectorAll("[data-tab]").forEach(b => {
+      b.classList.toggle("active", b === boton);
+    });
+
+    cargar();
+  });
+});
+
+$("actualizar").addEventListener("click", cargar);
+</script>
+
+</body>
+</html>
