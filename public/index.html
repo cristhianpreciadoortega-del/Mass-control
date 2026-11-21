@@ -559,10 +559,10 @@ function agregarElemento(titulo, detalle, etiqueta) {
   return item;
 }
 
-function agregarEditorFecha(item, id, fechaActual) {
+function agregarEditorFecha(item, id, fechaActual, lote = null) {
   const editor = document.createElement("details");
   const abrir = document.createElement("summary");
-  abrir.textContent = "Editar caducidad";
+  abrir.textContent = lote ? "Confirmar fecha y existencias" : "Editar caducidad";
   const formulario = document.createElement("form");
   const etiqueta = document.createElement("label");
   etiqueta.textContent = "Nueva fecha del lote";
@@ -573,10 +573,38 @@ function agregarEditorFecha(item, id, fechaActual) {
   etiqueta.append(fecha);
   const guardar = document.createElement("button");
   guardar.type = "submit";
-  guardar.textContent = "Guardar fecha";
+  guardar.textContent = lote ? "Confirmar lote" : "Guardar fecha";
+  const tipo = document.createElement("select");
+  const cantidad = document.createElement("input");
+  if (lote) {
+    const etiquetaTipo = document.createElement("label");
+    etiquetaTipo.textContent = "Tipo de fecha";
+    tipo.required = true;
+    tipo.append(new Option("Elige el tipo de fecha", ""),
+      new Option("Caducidad", "CADUCIDAD"),
+      new Option("Consumo preferente", "CONSUMO_PREFERENTE"));
+    tipo.value = ["CADUCIDAD", "CONSUMO_PREFERENTE"].includes(lote.tipo_fecha) ? lote.tipo_fecha : "";
+    etiquetaTipo.append(tipo);
+    const etiquetaCantidad = document.createElement("label");
+    etiquetaCantidad.textContent = "Unidades que quedan en tienda";
+    cantidad.type = "number";
+    cantidad.min = "1";
+    cantidad.max = "1000000";
+    cantidad.step = "1";
+    cantidad.required = true;
+    etiquetaCantidad.append(cantidad);
+    const comprobado = document.createElement("input");
+    comprobado.type = "checkbox";
+    comprobado.required = true;
+    const verificacion = document.createElement("label");
+    verificacion.className = "checkline";
+    verificacion.append(comprobado, "He comprobado la etiqueta y contado las unidades que quedan de este lote.");
+    formulario.append(etiqueta, etiquetaTipo, etiquetaCantidad, verificacion);
+  }
   const mensaje = document.createElement("p");
   mensaje.setAttribute("role", "status");
-  formulario.append(etiqueta, guardar, mensaje);
+  if (!lote) formulario.append(etiqueta);
+  formulario.append(guardar, mensaje);
   editor.append(abrir, formulario);
   item.append(editor);
 
@@ -585,14 +613,17 @@ function agregarEditorFecha(item, id, fechaActual) {
     guardar.disabled = true;
     mensaje.textContent = "";
     try {
-      await solicitar("/api/lotes/" + encodeURIComponent(id) + "/fecha", {
+      const datos = lote
+        ? { fecha_limite: fecha.value, tipo_fecha: tipo.value, cantidad: Number(cantidad.value) }
+        : { fecha_limite: fecha.value, fecha_anterior: fechaActual };
+      await solicitar("/api/lotes/" + encodeURIComponent(id) + (lote ? "/confirmar" : "/fecha"), {
         method: "PATCH",
-        body: JSON.stringify({ fecha_limite: fecha.value, fecha_anterior: fechaActual })
+        body: JSON.stringify(datos)
       });
       if (item.isConnected) {
         await cargar();
         if ($("consultaPanel").hidden === false && token) {
-          $("estado").textContent = "Fecha guardada. " + $("estado").textContent;
+          $("estado").textContent = (lote ? "Lote confirmado. " : "Fecha guardada. ") + $("estado").textContent;
         }
       }
     } catch (error) {
@@ -690,10 +721,18 @@ async function cargar() {
         const item = agregarElemento(
           lote.descripcion,
           "Código: " + lote.codigo_interno + " · Lote: " + lote.id +
-          " · Fecha: " + (fecha || "Sin fecha") + " · Cantidad: " + lote.cantidad,
+          " · Fecha: " + (fecha || "Sin fecha") + " · Cantidad: " + (lote.cantidad ?? "sin verificar"),
           lote.estado
         );
-        if (["ACTIVO", "PENDIENTE_REVISION"].includes(lote.estado)) {
+        if (lote.estado === "PENDIENTE_REVISION" && !lote.fecha_confirmada) {
+          if (lote.multilote_pendiente) {
+            const aviso = document.createElement("p");
+            aviso.textContent = "Multilote pendiente. Registra cada lote físico por separado.";
+            item.append(aviso);
+          } else {
+            agregarEditorFecha(item, lote.id, fecha, lote);
+          }
+        } else if (lote.estado === "ACTIVO") {
           agregarEditorFecha(item, lote.id, fecha);
         }
       });
