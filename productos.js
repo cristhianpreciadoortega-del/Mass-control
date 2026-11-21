@@ -301,5 +301,52 @@ module.exports = function crearRutasProductos(pool, autenticar) {
     }
   });
 
+  let tablaFotos;
+  function prepararFotos() {
+    tablaFotos ||= pool.query(`CREATE TABLE IF NOT EXISTS mass_control.fotos_producto (
+      producto_id bigint PRIMARY KEY REFERENCES mass_control.productos(id) ON DELETE CASCADE,
+      jpeg bytea NOT NULL CHECK (octet_length(jpeg) BETWEEN 4 AND 350000)
+    )`).catch(error => { tablaFotos = null; throw error; });
+    return tablaFotos;
+  }
+
+  router.get("/:id/foto", async (req, res) => {
+    if (!idValido(req.params.id)) return res.sendStatus(400);
+    try {
+      await prepararFotos();
+      const {rows} = await pool.query(`SELECT f.jpeg FROM mass_control.fotos_producto f
+        JOIN mass_control.productos p ON p.id = f.producto_id
+        WHERE p.id = $1 AND ($2::boolean OR p.tienda_id = $3::bigint)`,
+        [req.params.id, req.cuenta.rol === "ADMIN", req.cuenta.tienda_id]);
+      if (!rows.length) return res.sendStatus(404);
+      res.set({"Cache-Control":"private, no-store", "X-Content-Type-Options":"nosniff"});
+      res.type("image/jpeg").send(rows[0].jpeg);
+    } catch (error) {
+      console.error("Consultar foto:", error.code || error.name);
+      res.sendStatus(500);
+    }
+  });
+
+  router.put("/:id/foto", express.raw({type:"image/jpeg", limit:350000}), async (req, res) => {
+    const jpeg = req.body;
+    if (!idValido(req.params.id) || !Buffer.isBuffer(jpeg) || jpeg.length < 4 ||
+        jpeg[0] !== 255 || jpeg[1] !== 216 || jpeg[jpeg.length - 2] !== 255 || jpeg[jpeg.length - 1] !== 217) {
+      return res.status(400).json({error:"Selecciona una foto válida."});
+    }
+    try {
+      await prepararFotos();
+      const resultado = await pool.query(`INSERT INTO mass_control.fotos_producto (producto_id, jpeg)
+        SELECT p.id, $4 FROM mass_control.productos p
+        WHERE p.id = $1 AND ($2::boolean OR p.tienda_id = $3::bigint)
+        ON CONFLICT (producto_id) DO UPDATE SET jpeg = excluded.jpeg RETURNING producto_id`,
+        [req.params.id, req.cuenta.rol === "ADMIN", req.cuenta.tienda_id, jpeg]);
+      if (!resultado.rowCount) return res.sendStatus(404);
+      res.sendStatus(204);
+    } catch (error) {
+      console.error("Guardar foto:", error.code || error.name);
+      res.status(500).json({error:"No se pudo guardar la foto."});
+    }
+  });
+
   return router;
 };
