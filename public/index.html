@@ -195,6 +195,17 @@ button:disabled {
   header h1 { font-size: 22px; }
   .tabs button { flex-grow: 1; }
 }
+.section-navigation { display:flex; align-items:flex-start; gap:8px; margin:20px 0; }
+.menu-toggle { flex:none; padding:8px; min-width:42px; min-height:44px; background:#334155; }
+.main-tabs { flex:1; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; margin:0; }
+.main-tabs button { min-width:0; padding:8px 4px; min-height:44px; font-size:.85rem; line-height:1.2; }
+.side-menu { position:fixed; inset:0 auto 0 0; margin:0; box-sizing:border-box; width:min(255px,80vw); height:100%; max-height:none; padding:18px 14px; border:0; background:#fff; color:#182536; }
+.side-menu::backdrop { background:#102a4370; }
+.side-menu-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+.side-menu nav { display:grid; gap:8px; }
+.side-menu button { text-align:left; background:#455d75; }
+.side-menu button.active { background:#176b50; }
+.side-menu button.logout { margin-top:12px; background:#334155; }
 </style>
 </head>
 
@@ -228,7 +239,6 @@ button:disabled {
         <strong id="cuenta"></strong>
         <p id="rol"></p>
       </div>
-      <button id="salir" class="logout">Salir</button>
     </div>
 
     <section id="estadisticas" class="stats">
@@ -246,27 +256,28 @@ button:disabled {
       </div>
     </section>
 
-    <nav class="tabs" aria-label="Secciones">
-      <button type="button" data-tab="proximas"
-        class="active">Próximas</button>
-      <button type="button" data-tab="registradas">
-        Alertas guardadas
-      </button>
-      <button type="button" data-tab="historial">
-        Historial
-      </button>
-      <button type="button" data-tab="productos">
-        Productos
-      </button>
-      <button type="button" data-tab="nuevo">
-        Nuevo producto
-      </button>
-      <button type="button" data-tab="revision">Revisión de hoy</button>
-      <button type="button" data-tab="lotes">Lotes</button>
-      <button type="button" data-tab="nuevoLote">
-        Nuevo lote
-      </button>
-    </nav>
+    <div class="section-navigation">
+      <button id="abrirMenu" class="menu-toggle" type="button" aria-label="Abrir menú lateral" aria-haspopup="dialog" aria-controls="menuLateral">☰</button>
+      <nav class="tabs main-tabs" aria-label="Secciones principales">
+        <button type="button" data-tab="proximas" class="active">Próximos a caducar</button>
+        <button type="button" data-tab="productos">Productos</button>
+        <button type="button" data-tab="revision">Revisión de hoy</button>
+      </nav>
+    </div>
+    <dialog id="menuLateral" class="side-menu" aria-labelledby="tituloMenu">
+      <div class="side-menu-header">
+        <strong id="tituloMenu">Menú</strong>
+        <button id="cerrarMenu" type="button" aria-label="Cerrar menú">×</button>
+      </div>
+      <nav aria-label="Más secciones">
+        <button type="button" data-tab="registradas">Alertas guardadas</button>
+        <button type="button" data-tab="historial">Historial</button>
+        <button type="button" data-tab="nuevo">Nuevo producto</button>
+        <button type="button" data-tab="lotes">Lotes</button>
+        <button type="button" data-tab="nuevoLote">Nuevo lote</button>
+        <button type="button" id="salir" class="logout">Salir</button>
+      </nav>
+    </dialog>
 
     <section id="consultaPanel" class="card">
       <div class="topbar">
@@ -524,6 +535,7 @@ $("loginForm").addEventListener("submit", async e => {
 });
 
 function cerrarSesion() {
+  if ($("menuLateral").open) $("menuLateral").close();
   versionCarga++;
   token = null;
   perfilActual = null;
@@ -541,6 +553,14 @@ function cerrarSesion() {
   $("mensajeLote").textContent = "";
 }
 
+const menuLateral = $("menuLateral");
+$("abrirMenu").addEventListener("click", () => menuLateral.showModal());
+$("cerrarMenu").addEventListener("click", () => menuLateral.close());
+menuLateral.addEventListener("click", e => {
+  if (e.target !== menuLateral) return;
+  const caja = menuLateral.getBoundingClientRect();
+  if (e.clientX >= caja.right) menuLateral.close();
+});
 $("salir").addEventListener("click", cerrarSesion);
 
 function estiloEstado(valor) {
@@ -704,9 +724,10 @@ async function cambiarSeccion(nombre) {
 }
 
 document.querySelectorAll("[data-tab]").forEach(b => {
-  b.addEventListener("click", () =>
-    cambiarSeccion(b.dataset.tab)
-  );
+  b.addEventListener("click", () => {
+    if (menuLateral.open) menuLateral.close();
+    cambiarSeccion(b.dataset.tab);
+  });
 });
 
 let lotesRevision = [];
