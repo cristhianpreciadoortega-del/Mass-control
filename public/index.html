@@ -261,6 +261,7 @@ button:disabled {
       <button type="button" data-tab="nuevo">
         Nuevo producto
       </button>
+      <button type="button" data-tab="revision">Revisión de hoy</button>
       <button type="button" data-tab="lotes">Lotes</button>
       <button type="button" data-tab="nuevoLote">
         Nuevo lote
@@ -277,6 +278,12 @@ button:disabled {
         <label for="buscarCatalogo">Buscar producto por descripción o código</label>
         <input id="buscarCatalogo" type="search" maxlength="120" autocomplete="off">
       </div>
+      <section id="filtrosRevision" hidden>
+        <label for="familiaRevision">Familia</label>
+        <select id="familiaRevision"></select>
+        <label for="zonaRevision">Ubicación</label>
+        <select id="zonaRevision"></select>
+      </section>
       <div id="contenido"></div>
     </section>
 
