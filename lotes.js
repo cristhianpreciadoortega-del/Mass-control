@@ -345,7 +345,8 @@ module.exports = function crearRutasLotes(pool, autenticar) {
 
     const { fecha_limite: fecha, tipo_fecha: tipo, cantidad } = req.body || {};
     const revision = fecha !== undefined || tipo !== undefined || cantidad !== undefined;
-    if (revision && (!fechaValida(fecha) ||
+    const agotado = cantidad === 0;
+    if (revision && !agotado && (!fechaValida(fecha) ||
         !["CADUCIDAD", "CONSUMO_PREFERENTE"].includes(tipo) ||
         !Number.isInteger(cantidad) || cantidad < 1 || cantidad > 1000000)) {
       return res.status(400).json({ error: "Indica una fecha válida, su tipo y al menos una unidad." });
@@ -413,9 +414,10 @@ module.exports = function crearRutasLotes(pool, autenticar) {
       // =========================================
 
       if (
-        lote.estado !== "PENDIENTE_REVISION" ||
-        lote.fecha_confirmada ||
-        (!revision && (!lote.fecha_limite || !(lote.cantidad > 0)))
+        agotado
+          ? !["PENDIENTE_REVISION", "ACTIVO"].includes(lote.estado)
+          : lote.estado !== "PENDIENTE_REVISION" || lote.fecha_confirmada ||
+            (!revision && (!lote.fecha_limite || !(lote.cantidad > 0)))
       ) {
         await client.query("ROLLBACK");
         transaccion = false;
@@ -444,8 +446,8 @@ module.exports = function crearRutasLotes(pool, autenticar) {
            fecha_limite = COALESCE($2::date, fecha_limite),
            tipo_fecha = COALESCE($3::text, tipo_fecha),
            cantidad = COALESCE($4::integer, cantidad),
-           fecha_confirmada = TRUE,
-           estado = 'ACTIVO'
+           fecha_confirmada = CASE WHEN $5 THEN fecha_confirmada ELSE TRUE END,
+           estado = CASE WHEN $5 THEN 'AGOTADO' ELSE 'ACTIVO' END
 
          WHERE id = $1
 
@@ -457,7 +459,7 @@ module.exports = function crearRutasLotes(pool, autenticar) {
            cantidad,
            estado,
            fecha_confirmada`,
-        [lote.id, fecha ?? null, tipo ?? null, cantidad ?? null]
+        [lote.id, agotado ? null : fecha ?? null, agotado ? null : tipo ?? null, cantidad ?? null, agotado]
       );
 
       // =========================================
@@ -485,7 +487,7 @@ module.exports = function crearRutasLotes(pool, autenticar) {
         [
           lote.id,
           req.cuenta.id,
-          "CONFIRMACION_FECHA",
+          agotado ? "AGOTAMIENTO" : "CONFIRMACION_FECHA",
 
           JSON.stringify({
             fecha_limite: lote.fecha_limite,
