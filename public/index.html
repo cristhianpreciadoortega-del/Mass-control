@@ -273,6 +273,10 @@ button:disabled {
         <button id="actualizar" type="button">Actualizar</button>
       </div>
       <p id="estado" role="status"></p>
+      <div id="busquedaCatalogo" hidden>
+        <label for="buscarCatalogo">Buscar producto por descripción o código</label>
+        <input id="buscarCatalogo" type="search" maxlength="120" autocomplete="off">
+      </div>
       <div id="contenido"></div>
     </section>
 
@@ -351,6 +355,9 @@ button:disabled {
       <form id="loteForm">
         <div class="form-grid">
           <div class="full">
+            <label for="buscarProductoLote">Buscar producto por descripción o código</label>
+            <input id="buscarProductoLote" type="search" maxlength="120" autocomplete="off">
+            <div id="sugerenciasLote" class="row-actions" aria-label="Productos sugeridos"></div>
             <label for="productoLote">Producto *</label>
             <select id="productoLote" required>
               <option value="">Selecciona un producto</option>
@@ -427,6 +434,8 @@ let perfilActual = null;
 let seccion = "proximas";
 let versionCarga = 0;
 let productosDisponibles = [];
+let esperaBusqueda;
+let revisionBusquedaLote = 0;
 
 const $ = id => document.getElementById(id);
 
@@ -512,6 +521,8 @@ function cerrarSesion() {
   token = null;
   perfilActual = null;
   productosDisponibles = [];
+  $("buscarCatalogo").value = $("buscarProductoLote").value = "";
+  $("sugerenciasLote").replaceChildren();
 
   $("loginPanel").hidden = false;
   $("panel").hidden = true;
@@ -664,6 +675,8 @@ async function cambiarSeccion(nombre) {
     nombre === "nuevo" || nombre === "nuevoLote";
 
   $("estadisticas").hidden = nombre !== "proximas";
+  $("busquedaCatalogo").hidden = nombre !== "productos";
+  $("sugerenciasLote").replaceChildren();
 
   if (nombre === "nuevo") {
     await cargarFamilias();
@@ -782,7 +795,7 @@ async function cargar() {
       ));
     } else if (seccion === "productos") {
       $("titulo").textContent = "Productos registrados";
-      datos = await solicitar("/api/productos");
+      datos = await solicitar("/api/productos?" + new URLSearchParams({ q: $("buscarCatalogo").value.trim() }));
       lista = datos.productos || [];
 
       if (miVersion !== versionCarga) return;
@@ -919,7 +932,10 @@ async function cargarProductosParaLote() {
   if (!token || !perfilActual) return;
 
   const miVersion = versionCarga;
+  const revision = ++revisionBusquedaLote;
   const selector = $("productoLote");
+  const sugerencias = $("sugerenciasLote");
+  sugerencias.replaceChildren();
   const boton = $("guardarLote");
   const admin = perfilActual.rol === "ADMIN";
 
@@ -931,18 +947,18 @@ async function cargarProductosParaLote() {
   productosDisponibles = [];
 
   try {
-    let ruta = "/api/productos";
+    const filtros = new URLSearchParams({ para_lote: "1", q: $("buscarProductoLote").value.trim() });
 
     if (admin) {
       const tienda = $("tiendaLoteId").value.trim();
       if (!/^[1-9]\d*$/.test(tienda)) {
         throw new Error("Introduce una tienda válida.");
       }
-      ruta += "?tienda_id=" + encodeURIComponent(tienda);
+      filtros.set("tienda_id", tienda);
     }
 
-    const datos = await solicitar(ruta);
-    if (miVersion !== versionCarga ||
+    const datos = await solicitar("/api/productos?" + filtros);
+    if (revision !== revisionBusquedaLote || miVersion !== versionCarga ||
         seccion !== "nuevoLote") return;
 
     const tiendaEsperada = admin
@@ -968,6 +984,19 @@ async function cargarProductosParaLote() {
     });
 
     boton.disabled = !productosDisponibles.length;
+    if (filtros.get("q")) {
+      productosDisponibles.slice(0, 8).forEach(producto => {
+        const opcion = document.createElement("button");
+        opcion.type = "button";
+        opcion.textContent = producto.codigo_interno + " - " + producto.descripcion;
+        opcion.addEventListener("click", () => {
+          selector.value = String(producto.id);
+          $("buscarProductoLote").value = producto.descripcion;
+          sugerencias.replaceChildren();
+        });
+        sugerencias.append(opcion);
+      });
+    }
 
     if (!productosDisponibles.length) {
       $("mensajeLote").className = "message error";
@@ -978,7 +1007,7 @@ async function cargarProductosParaLote() {
       $("mensajeLote").className = "message";
       $("mensajeLote").textContent =
         "Se muestran hasta 100 productos. " +
-        "Más adelante añadiremos búsqueda y paginación.";
+        "Escribe palabras para acotar la búsqueda.";
     }
   } catch (error) {
     if (miVersion === versionCarga) {
@@ -992,7 +1021,24 @@ $("cargarProductosLote").addEventListener(
   "click", cargarProductosParaLote
 );
 
+$("buscarCatalogo").addEventListener("input", () => {
+  versionCarga++;
+  clearTimeout(esperaBusqueda);
+  esperaBusqueda = setTimeout(() => { if (seccion === "productos") cargar(); }, 200);
+});
+
+$("buscarProductoLote").addEventListener("input", () => {
+  revisionBusquedaLote++;
+  $("productoLote").value = "";
+  $("guardarLote").disabled = true;
+  $("sugerenciasLote").replaceChildren();
+  clearTimeout(esperaBusqueda);
+  esperaBusqueda = setTimeout(() => { if (seccion === "nuevoLote") cargarProductosParaLote(); }, 200);
+});
+
 $("tiendaLoteId").addEventListener("input", () => {
+  revisionBusquedaLote++;
+  $("sugerenciasLote").replaceChildren();
   productosDisponibles = [];
   $("productoLote").replaceChildren(
     new Option("Carga los productos de esta tienda", "")
