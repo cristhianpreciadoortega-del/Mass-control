@@ -588,7 +588,7 @@ function agregarEditorFecha(item, id, fechaActual, lote = null) {
     const etiquetaCantidad = document.createElement("label");
     etiquetaCantidad.textContent = "Unidades que quedan en tienda";
     cantidad.type = "number";
-    cantidad.min = "1";
+    cantidad.min = "0";
     cantidad.max = "1000000";
     cantidad.step = "1";
     cantidad.required = true;
@@ -598,8 +598,22 @@ function agregarEditorFecha(item, id, fechaActual, lote = null) {
     comprobado.required = true;
     const verificacion = document.createElement("label");
     verificacion.className = "checkline";
-    verificacion.append(comprobado, "He comprobado la etiqueta y contado las unidades que quedan de este lote.");
-    formulario.append(etiqueta, etiquetaTipo, etiquetaCantidad, verificacion);
+    const texto = document.createTextNode("");
+    verificacion.append(comprobado, texto);
+    const mostrarCampos = () => {
+      const sinStock = cantidad.value !== "" && cantidad.valueAsNumber === 0;
+      etiqueta.hidden = etiquetaTipo.hidden = sinStock;
+      fecha.disabled = tipo.disabled = sinStock;
+      guardar.textContent = sinStock ? "Marcar como agotado" : "Confirmar lote";
+      texto.data = sinStock ? "Confirmo que no quedan unidades de este lote." :
+        "He comprobado la etiqueta y contado las unidades que quedan de este lote.";
+    };
+    cantidad.addEventListener("input", () => {
+      comprobado.checked = false;
+      mostrarCampos();
+    });
+    mostrarCampos();
+    formulario.append(etiquetaCantidad, etiqueta, etiquetaTipo, verificacion);
   }
   const mensaje = document.createElement("p");
   mensaje.setAttribute("role", "status");
@@ -614,7 +628,8 @@ function agregarEditorFecha(item, id, fechaActual, lote = null) {
     mensaje.textContent = "";
     try {
       const datos = lote
-        ? { fecha_limite: fecha.value, tipo_fecha: tipo.value, cantidad: Number(cantidad.value) }
+        ? (cantidad.valueAsNumber === 0 ? { cantidad: 0 } :
+          { fecha_limite: fecha.value, tipo_fecha: tipo.value, cantidad: cantidad.valueAsNumber })
         : { fecha_limite: fecha.value, fecha_anterior: fechaActual };
       await solicitar("/api/lotes/" + encodeURIComponent(id) + (lote ? "/confirmar" : "/fecha"), {
         method: "PATCH",
@@ -623,7 +638,7 @@ function agregarEditorFecha(item, id, fechaActual, lote = null) {
       if (item.isConnected) {
         await cargar();
         if ($("consultaPanel").hidden === false && token) {
-          $("estado").textContent = (lote ? "Lote confirmado. " : "Fecha guardada. ") + $("estado").textContent;
+          $("estado").textContent = (datos.cantidad === 0 ? "Lote agotado. " : lote ? "Lote confirmado. " : "Fecha guardada. ") + $("estado").textContent;
         }
       }
     } catch (error) {
