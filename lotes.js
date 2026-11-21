@@ -76,6 +76,7 @@ module.exports = function crearRutasLotes(pool, autenticar) {
            l.fecha_limite,
            l.tipo_fecha,
            l.fecha_confirmada,
+           l.multilote_pendiente,
            l.cantidad,
            l.estado,
            l.registrado_en
@@ -101,7 +102,7 @@ module.exports = function crearRutasLotes(pool, autenticar) {
            l.fecha_limite ASC NULLS LAST,
            l.id DESC
 
-         LIMIT 100`,
+         LIMIT 250`,
         [tiendaId, productoId]
       );
 
@@ -342,6 +343,14 @@ module.exports = function crearRutasLotes(pool, autenticar) {
       });
     }
 
+    const { fecha_limite: fecha, tipo_fecha: tipo, cantidad } = req.body || {};
+    const revision = fecha !== undefined || tipo !== undefined || cantidad !== undefined;
+    if (revision && (!fechaValida(fecha) ||
+        !["CADUCIDAD", "CONSUMO_PREFERENTE"].includes(tipo) ||
+        !Number.isInteger(cantidad) || cantidad < 1 || cantidad > 1000000)) {
+      return res.status(400).json({ error: "Indica una fecha válida, su tipo y al menos una unidad." });
+    }
+
     let client;
     let transaccion = false;
 
@@ -361,6 +370,9 @@ module.exports = function crearRutasLotes(pool, autenticar) {
            l.estado,
            l.fecha_confirmada,
            l.fecha_limite,
+           l.tipo_fecha,
+           l.cantidad,
+           l.multilote_pendiente,
            p.tienda_id
 
          FROM mass_control.lotes l
@@ -403,7 +415,7 @@ module.exports = function crearRutasLotes(pool, autenticar) {
       if (
         lote.estado !== "PENDIENTE_REVISION" ||
         lote.fecha_confirmada ||
-        !lote.fecha_limite
+        (!revision && (!lote.fecha_limite || !(lote.cantidad > 0)))
       ) {
         await client.query("ROLLBACK");
         transaccion = false;
@@ -419,10 +431,19 @@ module.exports = function crearRutasLotes(pool, autenticar) {
       // ACTIVAR LOTE CONFIRMADO
       // =========================================
 
+      if (lote.multilote_pendiente) {
+        await client.query("ROLLBACK");
+        transaccion = false;
+        return res.status(409).json({ error: "Multilote pendiente. Comprueba y registra cada lote físico por separado." });
+      }
+
       const actualizado = await client.query(
         `UPDATE mass_control.lotes
 
          SET
+           fecha_limite = COALESCE($2::date, fecha_limite),
+           tipo_fecha = COALESCE($3::text, tipo_fecha),
+           cantidad = COALESCE($4::integer, cantidad),
            fecha_confirmada = TRUE,
            estado = 'ACTIVO'
 
@@ -432,10 +453,11 @@ module.exports = function crearRutasLotes(pool, autenticar) {
            id,
            producto_id,
            fecha_limite,
+           tipo_fecha,
            cantidad,
            estado,
            fecha_confirmada`,
-        [lote.id]
+        [lote.id, fecha ?? null, tipo ?? null, cantidad ?? null]
       );
 
       // =========================================
@@ -466,14 +488,14 @@ module.exports = function crearRutasLotes(pool, autenticar) {
           "CONFIRMACION_FECHA",
 
           JSON.stringify({
+            fecha_limite: lote.fecha_limite,
+            tipo_fecha: lote.tipo_fecha,
+            cantidad: lote.cantidad,
             estado: lote.estado,
             fecha_confirmada: lote.fecha_confirmada
           }),
 
-          JSON.stringify({
-            estado: "ACTIVO",
-            fecha_confirmada: true
-          })
+          JSON.stringify(actualizado.rows[0])
         ]
       );
 
