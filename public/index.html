@@ -261,6 +261,7 @@ button:disabled {
       <button type="button" data-tab="nuevo">
         Nuevo producto
       </button>
+      <button type="button" data-tab="lotes">Lotes</button>
       <button type="button" data-tab="nuevoLote">
         Nuevo lote
       </button>
@@ -555,6 +556,51 @@ function agregarElemento(titulo, detalle, etiqueta) {
 
   item.append(cabecera, descripcion);
   $("contenido").appendChild(item);
+  return item;
+}
+
+function agregarEditorFecha(item, id, fechaActual) {
+  const editor = document.createElement("details");
+  const abrir = document.createElement("summary");
+  abrir.textContent = "Editar caducidad";
+  const formulario = document.createElement("form");
+  const etiqueta = document.createElement("label");
+  etiqueta.textContent = "Nueva fecha del lote";
+  const fecha = document.createElement("input");
+  fecha.type = "date";
+  fecha.required = true;
+  fecha.value = fechaActual || "";
+  etiqueta.append(fecha);
+  const guardar = document.createElement("button");
+  guardar.type = "submit";
+  guardar.textContent = "Guardar fecha";
+  const mensaje = document.createElement("p");
+  mensaje.setAttribute("role", "status");
+  formulario.append(etiqueta, guardar, mensaje);
+  editor.append(abrir, formulario);
+  item.append(editor);
+
+  formulario.addEventListener("submit", async e => {
+    e.preventDefault();
+    guardar.disabled = true;
+    mensaje.textContent = "";
+    try {
+      await solicitar("/api/lotes/" + encodeURIComponent(id) + "/fecha", {
+        method: "PATCH",
+        body: JSON.stringify({ fecha_limite: fecha.value, fecha_anterior: fechaActual })
+      });
+      if (item.isConnected) {
+        await cargar();
+        if ($("consultaPanel").hidden === false && token) {
+          $("estado").textContent = "Fecha guardada. " + $("estado").textContent;
+        }
+      }
+    } catch (error) {
+      mensaje.textContent = error.message;
+    } finally {
+      guardar.disabled = false;
+    }
+  });
 }
 
 async function cambiarSeccion(nombre) {
@@ -622,14 +668,35 @@ async function cargar() {
           .includes(a.tipo_alerta)
       ).length;
 
-      lista.forEach(a => agregarElemento(
+      lista.forEach(a => {
+        const item = agregarElemento(
         a.descripcion,
         "Código: " + a.codigo_interno +
         " · Caducidad: " + a.fecha_caducidad +
         " · Cantidad: " + a.cantidad +
         " · Lote: " + a.lote_id,
         a.tipo_alerta
-      ));
+        );
+        agregarEditorFecha(item, a.lote_id, a.fecha_caducidad);
+      });
+    } else if (seccion === "lotes") {
+      $("titulo").textContent = "Lotes registrados";
+      datos = await solicitar("/api/lotes");
+      lista = datos.lotes || [];
+      if (miVersion !== versionCarga) return;
+
+      lista.forEach(lote => {
+        const fecha = lote.fecha_limite?.slice(0, 10) || null;
+        const item = agregarElemento(
+          lote.descripcion,
+          "Código: " + lote.codigo_interno + " · Lote: " + lote.id +
+          " · Fecha: " + (fecha || "Sin fecha") + " · Cantidad: " + lote.cantidad,
+          lote.estado
+        );
+        if (["ACTIVO", "PENDIENTE_REVISION"].includes(lote.estado)) {
+          agregarEditorFecha(item, lote.id, fecha);
+        }
+      });
     } else if (seccion === "registradas") {
       $("titulo").textContent = "Alertas registradas";
       datos = await solicitar("/api/alertas/registradas");
