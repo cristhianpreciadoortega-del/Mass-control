@@ -793,7 +793,10 @@ function mostrarRevision() {
     agregarEditorFecha(item, lote.id, fecha, null, siguiente);
     acciones.append(boton("Validar y siguiente", siguiente));
     const cero = boton("Marcar 0 unidades", async () => {
-      if (!confirm("¿Confirmas que no quedan unidades de este lote?")) return;
+      if (cero.textContent === "Marcar 0 unidades") {
+        cero.textContent = "Confirmar 0 unidades";
+        return;
+      }
       cero.disabled = true;
       try {
         await solicitar("/api/lotes/" + encodeURIComponent(lote.id) + "/confirmar", {
