@@ -207,6 +207,38 @@ button:disabled {
 .side-menu button.active { background:#176b50; }
 .side-menu button.logout { margin-top:12px; background:#334155; }
 .foto-producto { width:72px; height:72px; object-fit:contain; background:white; border-radius:8px; margin-bottom:8px; }
+
+:root { --mass-ink:#142634; --mass-blue:#17456b; --mass-green:#12634d; --mass-border:#e1e8ee; color:var(--mass-ink); background:#f4f7fa; }
+body > header { padding:20px max(16px,calc((100% - 1018px)/2)); background:linear-gradient(115deg,#102a43,#1a4d70); border-bottom:4px solid #ffe168; }
+body > header h1 { font-size:clamp(1.35rem,4.4vw,1.85rem); letter-spacing:.035em; }
+body > header p { font-size:.875rem; }
+main { margin-top:16px; }
+.card { box-shadow:0 2px 12px #1426340b; border:1px solid var(--mass-border); }
+#panel > .topbar { padding:10px 14px; margin-bottom:12px; font-size:.86rem; }
+#panel > .topbar > div { display:flex; justify-content:space-between; flex-wrap:wrap; gap:4px 12px; width:100%; }
+#rol { margin:0; color:#486278; }
+.section-navigation { margin:12px 0; }
+.main-tabs button { background:#fff; border:1px solid var(--mass-border); color:var(--mass-blue); }
+.main-tabs button.active { background:var(--mass-green); border-color:var(--mass-green); color:white; }
+#abrirMenu { background:#e7eef5; color:var(--mass-blue); border:1px solid var(--mass-border); }
+.stats { grid-template-columns:repeat(3,minmax(0,1fr)); gap:7px; }
+.stat { background:#fff; border:1px solid var(--mass-border); padding:9px; font-size:.76rem; line-height:1.2; }
+.stat strong { font-size:1.4rem; margin-top:4px; }
+#consultaPanel > .topbar h2 { margin:0; font-size:clamp(1.08rem,4vw,1.45rem); }
+#actualizar { padding:8px 10px; font-size:.82rem; }
+#estado { margin:8px 0 12px; color:#486278; font-size:.84rem; }
+#busquedaCatalogo { padding:10px; background:#f0f5fa; border-radius:10px; margin-bottom:12px; }
+#buscarCatalogo { margin:5px 0 0; padding:10px; }
+#busquedaCatalogo label { font-size:.82rem; margin:0; }
+#busquedaCatalogo:not([hidden]) ~ #contenido { display:grid; grid-template-columns:repeat(auto-fit,minmax(142px,1fr)); gap:10px; }
+#busquedaCatalogo:not([hidden]) ~ #contenido .item { min-width:0; display:flex; flex-direction:column; align-items:flex-start; gap:7px; padding:10px; border:1px solid var(--mass-border); border-radius:12px; background:white; }
+#busquedaCatalogo:not([hidden]) ~ #contenido .item-head { flex-direction:column; gap:4px; }
+#busquedaCatalogo:not([hidden]) ~ #contenido .item strong { font-size:.86rem; line-height:1.25; }
+#busquedaCatalogo:not([hidden]) ~ #contenido .item p { margin:0; font-size:.76rem; overflow-wrap:anywhere; }
+#busquedaCatalogo:not([hidden]) ~ #contenido .item > button { margin-top:auto; padding:7px 9px; font-size:.76rem; color:var(--mass-blue); background:#edf3f8; }
+#busquedaCatalogo:not([hidden]) ~ #contenido .foto-producto { width:100%; height:auto; aspect-ratio:4/3; margin:0; }
+.foto-producto { background:#f7f9fb; }
+@media(max-width:370px) { #busquedaCatalogo:not([hidden]) ~ #contenido { grid-template-columns:repeat(2,minmax(0,1fr)); } .main-tabs button { font-size:.77rem; } }
 </style>
 </head>
 
@@ -288,7 +320,7 @@ button:disabled {
       <p id="estado" role="status"></p>
       <div id="busquedaCatalogo" hidden>
         <label for="buscarCatalogo">Buscar producto por descripción o código</label>
-        <input id="buscarCatalogo" type="search" maxlength="120" autocomplete="off">
+        <input id="buscarCatalogo" type="search" maxlength="120" autocomplete="off" placeholder="Ej. Bimbo o código interno">
       </div>
       <section id="filtrosRevision" hidden>
         <label for="familiaRevision">Familia</label>
