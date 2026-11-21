@@ -206,6 +206,7 @@ button:disabled {
 .side-menu button { text-align:left; background:#455d75; }
 .side-menu button.active { background:#176b50; }
 .side-menu button.logout { margin-top:12px; background:#334155; }
+.foto-producto { width:72px; height:72px; object-fit:contain; background:white; border-radius:8px; margin-bottom:8px; }
 </style>
 </head>
 
@@ -573,7 +574,77 @@ function estiloEstado(valor) {
   return "";
 }
 
-function agregarElemento(titulo, detalle, etiqueta) {
+async function adjuntarFoto(item, id, editable = false) {
+  if (!id) return;
+  const ruta = "/api/productos/" + encodeURIComponent(id) + "/foto";
+  const sesion = token;
+  const miniatura = document.createElement("img");
+  miniatura.alt = "Foto del producto";
+  miniatura.className = "foto-producto";
+  miniatura.hidden = true;
+  item.prepend(miniatura);
+  const mostrar = imagen => {
+    const url = URL.createObjectURL(imagen);
+    miniatura.onload = miniatura.onerror = () => URL.revokeObjectURL(url);
+    miniatura.src = url;
+    miniatura.hidden = false;
+  };
+  const mensaje = document.createElement("p");
+  mensaje.setAttribute("role", "status");
+  if (editable) {
+    const selector = document.createElement("input");
+    selector.type = "file";
+    selector.accept = "image/*";
+    selector.hidden = true;
+    const boton = document.createElement("button");
+    boton.type = "button";
+    boton.textContent = "Añadir foto";
+    boton.addEventListener("click", () => selector.click());
+    item.append(boton, selector, mensaje);
+    selector.addEventListener("change", async () => {
+      const archivo = selector.files[0];
+      selector.value = "";
+      if (!archivo || token !== sesion) return;
+      boton.disabled = true;
+      mensaje.textContent = "Guardando foto…";
+      try {
+        if (archivo.size > 20000000) throw new Error("La foto supera los 20 MB.");
+        const imagen = await createImageBitmap(archivo);
+        const lienzo = document.createElement("canvas");
+        const proporcion = Math.min(1, 512 / Math.max(imagen.width, imagen.height));
+        lienzo.width = Math.max(1, Math.round(imagen.width * proporcion));
+        lienzo.height = Math.max(1, Math.round(imagen.height * proporcion));
+        const contexto = lienzo.getContext("2d");
+        contexto.fillStyle = "white";
+        contexto.fillRect(0, 0, lienzo.width, lienzo.height);
+        contexto.drawImage(imagen, 0, 0, lienzo.width, lienzo.height);
+        imagen.close();
+        const jpeg = await new Promise(resolve => lienzo.toBlob(resolve, "image/jpeg", .8));
+        if (!jpeg || token !== sesion) return;
+        const respuesta = await fetch(ruta, {method:"PUT", headers:{Authorization:"Bearer " + sesion, "Content-Type":"image/jpeg"}, body:jpeg});
+        if (!respuesta.ok) throw new Error("No se pudo guardar la foto (" + respuesta.status + ").");
+        mostrar(jpeg);
+        boton.textContent = "Cambiar foto";
+        mensaje.textContent = "Foto guardada.";
+      } catch (error) {
+        mensaje.textContent = error.message;
+      } finally { boton.disabled = false; }
+    });
+    miniatura.addEventListener("load", () => { boton.textContent = "Cambiar foto"; });
+  }
+  const observador = new IntersectionObserver(async entradas => {
+    if (!entradas.some(entrada => entrada.isIntersecting)) return;
+    observador.disconnect();
+    if (!item.isConnected || token !== sesion) return;
+    try {
+      const respuesta = await fetch(ruta, {headers:{Authorization:"Bearer " + sesion}});
+      if (respuesta.ok && item.isConnected) mostrar(await respuesta.blob());
+    } catch (_) { /* La ficha sigue disponible si falla la miniatura. */ }
+  });
+  observador.observe(item);
+}
+
+function agregarElemento(titulo, detalle, etiqueta, productoId, editarFoto = false) {
   const item = document.createElement("article");
   item.className = "item";
 
@@ -594,6 +665,7 @@ function agregarElemento(titulo, detalle, etiqueta) {
 
   item.append(cabecera, descripcion);
   $("contenido").appendChild(item);
+  if (productoId) adjuntarFoto(item, productoId, editarFoto);
   return item;
 }
 
@@ -789,7 +861,7 @@ function mostrarRevision() {
   const estado = prioridad(lote) === 0 ? (fecha === dia ? "VENCE_HOY" : "VENCIDO") : lote.estado;
   const item = agregarElemento(lote.descripcion, "Código: " + lote.codigo_interno +
     " · Lote: " + (lote.numero_lote || lote.id) + " · Fecha: " + (fecha || "sin fecha") +
-    " · Unidades: " + (lote.cantidad ?? "sin verificar") + " · " + familia(lote) + " · " + zona(lote), estado);
+    " · Unidades: " + (lote.cantidad ?? "sin verificar") + " · " + familia(lote) + " · " + zona(lote), estado, lote.producto_id);
   const etiqueta = document.createElement("label");
   etiqueta.textContent = "Ubicación en tienda";
   const ubicacion = document.createElement("input");
@@ -878,7 +950,7 @@ async function cargar() {
         " · Caducidad: " + a.fecha_caducidad +
         " · Cantidad: " + a.cantidad +
         " · Lote: " + a.lote_id,
-        a.tipo_alerta
+        a.tipo_alerta, a.producto_id
         );
         agregarEditorFecha(item, a.lote_id, a.fecha_caducidad);
       });
@@ -958,7 +1030,7 @@ async function cargar() {
         " · Familia: " + (p.familia || "Sin asignar") +
         " · Tienda: " + p.tienda_id +
         " · ID: " + p.id,
-        p.activo ? "ACTIVO" : "INACTIVO"
+        p.activo ? "ACTIVO" : "INACTIVO", p.id, true
       ));
     }
 
@@ -1066,6 +1138,14 @@ $("productoForm").addEventListener("submit", async e => {
     $("mensajeProducto").textContent =
       "Producto registrado. ID: " +
       respuesta.producto.id;
+    const abrirFicha = document.createElement("button");
+    abrirFicha.type = "button";
+    abrirFicha.textContent = "Añadir foto";
+    abrirFicha.addEventListener("click", () => {
+      $("buscarCatalogo").value = codigo;
+      cambiarSeccion("productos");
+    });
+    $("mensajeProducto").append(" ", abrirFicha);
 
     $("productoForm").reset();
     $("familia").value = "";
