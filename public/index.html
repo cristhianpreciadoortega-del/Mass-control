@@ -621,6 +621,7 @@ async function adjuntarFoto(item, id, editable = false) {
   };
   const mensaje = document.createElement("p");
   mensaje.setAttribute("role", "status");
+  let botonFoto;
   if (editable) {
     const selector = document.createElement("input");
     selector.type = "file";
@@ -629,6 +630,8 @@ async function adjuntarFoto(item, id, editable = false) {
     const boton = document.createElement("button");
     boton.type = "button";
     boton.textContent = "Añadir foto";
+    boton.hidden = true;
+    botonFoto = boton;
     boton.addEventListener("click", () => selector.click());
     item.append(boton, selector, mensaje);
     selector.addEventListener("change", async () => {
@@ -654,13 +657,12 @@ async function adjuntarFoto(item, id, editable = false) {
         const respuesta = await fetch(ruta, {method:"PUT", headers:{Authorization:"Bearer " + sesion, "Content-Type":"image/jpeg"}, body:jpeg});
         if (!respuesta.ok) throw new Error("No se pudo guardar la foto (" + respuesta.status + ").");
         mostrar(jpeg);
-        boton.textContent = "Cambiar foto";
+        boton.hidden = true;
         mensaje.textContent = "Foto guardada.";
       } catch (error) {
         mensaje.textContent = error.message;
       } finally { boton.disabled = false; }
     });
-    miniatura.addEventListener("load", () => { boton.textContent = "Cambiar foto"; });
   }
   const observador = new IntersectionObserver(async entradas => {
     if (!entradas.some(entrada => entrada.isIntersecting)) return;
@@ -668,7 +670,9 @@ async function adjuntarFoto(item, id, editable = false) {
     if (!item.isConnected || token !== sesion) return;
     try {
       const respuesta = await fetch(ruta, {headers:{Authorization:"Bearer " + sesion}});
-      if (respuesta.ok && item.isConnected) mostrar(await respuesta.blob());
+      if (!item.isConnected || token !== sesion) return;
+      if (respuesta.ok) mostrar(await respuesta.blob());
+      else if (respuesta.status === 404 && botonFoto) botonFoto.hidden = false;
     } catch (_) { /* La ficha sigue disponible si falla la miniatura. */ }
   });
   observador.observe(item);
