@@ -325,8 +325,6 @@ main { margin-top:16px; }
       <section id="filtrosRevision" hidden>
         <label for="familiaRevision">Familia</label>
         <select id="familiaRevision"></select>
-        <label for="zonaRevision">Ubicación</label>
-        <select id="zonaRevision"></select>
       </section>
       <div id="contenido"></div>
     </section>
@@ -849,11 +847,9 @@ function mostrarRevision() {
   if (!cuenta || seccion !== "revision") return;
   const clave = "mass-revision:" + cuenta;
   const claveDia = clave + ":hoy";
-  const ubicaciones = datosRevision(clave);
   const guardado = datosRevision(claveDia);
   const revisados = guardado.dia === dia ? guardado.lotes : {};
   if (ultimaRevision !== clave + dia) { ultimaRevision = clave + dia; omitidosRevision = new Set(); }
-  const zona = lote => ubicaciones[lote.producto_id] || "Sin ubicación";
   const familia = lote => lote.familia || "Sin familia";
   const opciones = (campo, valores, todos) => {
     const selector = $(campo);
@@ -864,14 +860,11 @@ function mostrarRevision() {
     return selector.value;
   };
   const seleccion = opciones("familiaRevision", lotesRevision.map(familia), "Todas las familias");
-  const familiaLotes = lotesRevision.filter(lote => !seleccion || familia(lote) === seleccion);
-  const lugar = opciones("zonaRevision", familiaLotes.map(zona), "Todas las ubicaciones");
-  const lista = familiaLotes.filter(lote => !lugar || zona(lote) === lugar);
+  const lista = lotesRevision.filter(lote => !seleccion || familia(lote) === seleccion);
   const pendientes = lista.filter(lote => !revisados[lote.id]);
   const prioridad = lote => lote.fecha_limite?.slice(0,10) <= dia ? 0 : 1;
   const lote = pendientes.filter(lote => !omitidosRevision.has(lote.id)).sort((a,b) =>
     prioridad(a) - prioridad(b) || familia(a).localeCompare(familia(b),"es") ||
-    zona(a).localeCompare(zona(b),"es",{numeric:true}) ||
     (a.fecha_limite || "9999").localeCompare(b.fecha_limite || "9999"))[0];
   $("contenido").replaceChildren();
   $("estado").textContent = (lista.length - pendientes.length) + " revisados de " + lista.length +
@@ -893,25 +886,13 @@ function mostrarRevision() {
   const estado = prioridad(lote) === 0 ? (fecha === dia ? "VENCE_HOY" : "VENCIDO") : lote.estado;
   const item = agregarElemento(lote.descripcion, "Código: " + lote.codigo_interno +
     " · Lote: " + (lote.numero_lote || lote.id) + " · Fecha: " + (fecha || "sin fecha") +
-    " · Unidades: " + (lote.cantidad ?? "sin verificar") + " · " + familia(lote) + " · " + zona(lote), estado, lote.producto_id);
-  const etiqueta = document.createElement("label");
-  etiqueta.textContent = "Ubicación en tienda";
-  const ubicacion = document.createElement("input");
-  ubicacion.maxLength = 80;
-  ubicacion.value = ubicaciones[lote.producto_id] || "";
-  ubicacion.placeholder = "Ej. Mural refrigerado · Puerta 2 · Balda 3";
-  etiqueta.append(ubicacion);
+    " · Unidades: " + (lote.cantidad ?? "sin verificar") + " · " + familia(lote), estado, lote.producto_id);
   const acciones = document.createElement("div");
   acciones.className = "row-actions";
-  acciones.append(boton("Guardar ubicación", () => {
-    ubicaciones[lote.producto_id] = ubicacion.value.trim();
-    localStorage.setItem(clave, JSON.stringify(ubicaciones));
-    mostrarRevision();
-  }));
   acciones.append(boton("Saltar por ahora", () => {
     omitidosRevision.add(lote.id); mostrarRevision();
   }));
-  item.append(etiqueta, acciones);
+  item.append(acciones);
   const siguiente = () => {
     revisados[lote.id] = true;
     localStorage.setItem(claveDia, JSON.stringify({dia, lotes:revisados}));
@@ -946,7 +927,6 @@ function mostrarRevision() {
 }
 
 $("familiaRevision").addEventListener("change", mostrarRevision);
-$("zonaRevision").addEventListener("change", mostrarRevision);
 
 async function cargar() {
   if (!token) return;
