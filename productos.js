@@ -65,6 +65,31 @@ module.exports = function crearRutasProductos(pool, autenticar) {
     }
 
     const filtro = tienda != null && tienda !== "";
+    if (!admin && !filtro) return res.status(403).json({ error: "Tienda no asignada" });
+
+    const consulta = req.query.q ?? "";
+    if (typeof consulta !== "string" || consulta.length > 120) {
+      return res.status(400).json({ error: "Búsqueda no válida" });
+    }
+    const palabras = consulta.toLowerCase().normalize("NFD")
+      .replace(/\p{M}/gu, "").match(/[\p{L}\p{N}]+/gu) || [];
+    const params = [];
+    const condiciones = [];
+    if (filtro) {
+      params.push(tienda);
+      condiciones.push("p.tienda_id = $1");
+    }
+    if (req.query.para_lote === "1") {
+      condiciones.push("p.activo = TRUE AND p.controla_fecha = TRUE");
+    }
+    if (palabras.length) {
+      params.push(palabras);
+      condiciones.push(`NOT EXISTS (
+        SELECT 1 FROM unnest($${params.length}::text[]) AS termino(palabra)
+        WHERE strpos(translate(lower(concat_ws(' ', p.descripcion, p.codigo_interno, p.codigo_barras)),
+          'áéíóúüñ', 'aeiouun'), termino.palabra) = 0
+      )`);
+    }
 
     if (filtro && !idValido(tienda)) {
       return res.status(400).json({
@@ -88,10 +113,10 @@ module.exports = function crearRutasProductos(pool, autenticar) {
          FROM mass_control.productos p
          LEFT JOIN mass_control.familias f
            ON f.id = p.familia_id
-         ${filtro ? "WHERE p.tienda_id = $1" : ""}
+         ${condiciones.length ? "WHERE " + condiciones.join(" AND ") : ""}
          ORDER BY p.id DESC
          LIMIT 100`,
-        filtro ? [tienda] : []
+        params
       );
 
       res.json({
