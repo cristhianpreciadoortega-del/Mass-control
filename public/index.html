@@ -577,7 +577,7 @@ function agregarElemento(titulo, detalle, etiqueta) {
   return item;
 }
 
-function agregarEditorFecha(item, id, fechaActual, lote = null) {
+function agregarEditorFecha(item, id, fechaActual, lote = null, alGuardar = null) {
   const editor = document.createElement("details");
   const abrir = document.createElement("summary");
   abrir.textContent = lote ? "Confirmar fecha y existencias" : "Editar caducidad";
@@ -654,6 +654,7 @@ function agregarEditorFecha(item, id, fechaActual, lote = null) {
         body: JSON.stringify(datos)
       });
       if (item.isConnected) {
+        if (alGuardar) { alGuardar(); return; }
         await cargar();
         if ($("consultaPanel").hidden === false && token) {
           $("estado").textContent = (datos.cantidad === 0 ? "Lote agotado. " : lote ? "Lote confirmado. " : "Fecha guardada. ") + $("estado").textContent;
@@ -683,6 +684,7 @@ async function cambiarSeccion(nombre) {
 
   $("estadisticas").hidden = nombre !== "proximas";
   $("busquedaCatalogo").hidden = nombre !== "productos";
+  $("filtrosRevision").hidden = nombre !== "revision";
   $("sugerenciasLote").replaceChildren();
 
   if (nombre === "nuevo") {
