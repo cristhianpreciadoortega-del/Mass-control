@@ -72,6 +72,7 @@ module.exports = function crearRutasLotes(pool, autenticar) {
            p.tienda_id,
            p.codigo_interno,
            p.descripcion,
+           f.nombre AS familia,
            l.numero_lote,
            l.fecha_limite,
            l.tipo_fecha,
@@ -85,6 +86,7 @@ module.exports = function crearRutasLotes(pool, autenticar) {
 
          JOIN mass_control.productos p
            ON p.id = l.producto_id
+         LEFT JOIN mass_control.familias f ON f.id = p.familia_id
 
          WHERE
            (
