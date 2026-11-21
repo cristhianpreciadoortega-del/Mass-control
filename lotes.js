@@ -509,6 +509,64 @@ module.exports = function crearRutasLotes(pool, autenticar) {
     }
   });
 
+
+  router.patch("/:id/fecha", async (req, res) => {
+    const { fecha_limite: fecha, fecha_anterior: anterior } = req.body || {};
+    if (!idValido(req.params.id) || !fechaValida(fecha) ||
+        (anterior !== null && !fechaValida(anterior))) {
+      return res.status(400).json({ error: "Fecha o lote no válido." });
+    }
+
+    const admin = req.cuenta.rol === "ADMIN";
+    if (!admin && req.cuenta.rol !== "TIENDA") {
+      return res.status(403).json({ error: "Acceso prohibido." });
+    }
+
+    try {
+      const { rows: [resultado] } = await pool.query(
+        `WITH seleccionado AS (
+          SELECT l.id, l.fecha_limite, l.estado
+          FROM mass_control.lotes l
+          JOIN mass_control.productos p ON p.id = l.producto_id
+          WHERE l.id = $1 AND ($2::boolean OR p.tienda_id = $3::bigint)
+          FOR UPDATE OF l
+        ), actualizado AS (
+          UPDATE mass_control.lotes l
+          SET fecha_limite = $4::date
+          FROM seleccionado s
+          WHERE l.id = s.id AND s.estado IN ('ACTIVO', 'PENDIENTE_REVISION')
+            AND s.fecha_limite IS NOT DISTINCT FROM $5::date
+            AND s.fecha_limite IS DISTINCT FROM $4::date
+          RETURNING l.id, s.fecha_limite AS fecha_anterior, l.fecha_limite
+        ), movimiento AS (
+          INSERT INTO mass_control.movimientos
+            (lote_id, cuenta_id, accion, datos_anteriores, datos_nuevos)
+          SELECT id, $6, 'CAMBIO_FECHA',
+            jsonb_build_object('fecha_limite', fecha_anterior),
+            jsonb_build_object('fecha_limite', fecha_limite)
+          FROM actualizado
+          RETURNING lote_id
+        )
+        SELECT s.id, s.estado, s.fecha_limite::text AS fecha_actual,
+          m.lote_id IS NOT NULL AS guardado
+        FROM seleccionado s LEFT JOIN movimiento m ON m.lote_id = s.id`,
+        [req.params.id, admin, req.cuenta.tienda_id, fecha, anterior, req.cuenta.id]
+      );
+
+      if (!resultado) return res.status(404).json({ error: "Lote no encontrado." });
+      if (!["ACTIVO", "PENDIENTE_REVISION"].includes(resultado.estado)) {
+        return res.status(409).json({ error: "El estado del lote impide editarlo." });
+      }
+      if (!resultado.guardado && resultado.fecha_actual !== fecha) {
+        return res.status(409).json({ error: "La fecha cambió. Actualiza la lista y vuelve a intentarlo." });
+      }
+      res.json({ id: resultado.id, fecha_limite: fecha });
+    } catch (error) {
+      console.error("Editar fecha de lote:", error.code || error.name);
+      res.status(500).json({ error: "No se pudo guardar la fecha." });
+    }
+  });
+
   // =========================================
   // FINAL DEL MODULO
   // =========================================
